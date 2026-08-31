@@ -42,10 +42,16 @@ def get_tasks_service(
     current_user, 
     project_id
   )
-  return get_tasks(
+  tasks, total = get_tasks(
     db,
     project.id,
     status,
     page,
     page_size
   )
+  return {
+    "items": tasks,
+    "page": page,
+    "page_size": page_size,
+    "total": total
+  }

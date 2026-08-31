@@ -21,7 +21,7 @@ from schemas.project import (
   ProjectUpdate
 )
 from schemas.task import (
-  TaskResponse,
+  TaskListResponse,
   TaskCreate
 )
 
@@ -105,7 +105,7 @@ def delete_project(
 
 @router.post(
   "/{project_id}/tasks",
-  response_model=TaskResponse
+  response_model=TaskListResponse
 )
 def create_task(
   project_id: int,
@@ -122,7 +122,7 @@ def create_task(
 
 @router.get(
   "/{project_id}/tasks",
-  response_model=list[TaskResponse]
+  response_model=TaskListResponse
 )
 def get_tasks(
   project_id: int,

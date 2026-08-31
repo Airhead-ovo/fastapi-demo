@@ -13,3 +13,9 @@ class TaskResponse(BaseModel):
 
   class Config:
     from_attributes = True
+
+class TaskListResponse(BaseModel):
+  items: list[TaskResponse]
+  page: int
+  page_size: int
+  total: int

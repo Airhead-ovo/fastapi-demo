@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from models.task import Task
 
@@ -32,17 +32,26 @@ def get_tasks(
     Task.project_id == project_id
   )
 
+  count_query = select(func.count(Task.id)).where(
+    Task.project_id == project_id
+  )
+
   if status is not None: 
     query = query.where(
       Task.status == status
     )
+    count_query = count_query.where(
+      Task.status == status
+    )
+
+  total = db.scalar(count_query) # 执行 SQL，然后只取结果的第一个值 就是数字
 
   offset = (page - 1) * page_size  
 
-  query = (
+  tasks = db.scalars(
     query
     .offset(offset)  # 前面跳过多少条
     .limit(page_size)  # 最多取多少条
-  )
+  ).all()
 
-  return db.scalars(query).all()
+  return tasks, total
