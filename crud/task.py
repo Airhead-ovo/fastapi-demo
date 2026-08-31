@@ -25,6 +25,7 @@ def get_tasks(
   db: Session,
   project_id: int,
   status: str | None,
+  keyword: str | None,
   page: int,
   page_size: int
 ):
@@ -42,6 +43,14 @@ def get_tasks(
     )
     count_query = count_query.where(
       Task.status == status
+    )
+
+  if keyword:
+    query = query.where(
+      Task.title.contains(keyword)
+    )
+    count_query = count_query.where(
+      Task.title.contains(keyword)
     )
 
   total = db.scalar(count_query) # 执行 SQL，然后只取结果的第一个值 就是数字

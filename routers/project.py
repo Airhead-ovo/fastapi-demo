@@ -22,7 +22,8 @@ from schemas.project import (
 )
 from schemas.task import (
   TaskListResponse,
-  TaskCreate
+  TaskCreate,
+  TaskResponse
 )
 
 router = APIRouter( 
@@ -105,7 +106,7 @@ def delete_project(
 
 @router.post(
   "/{project_id}/tasks",
-  response_model=TaskListResponse
+  response_model=TaskResponse
 )
 def create_task(
   project_id: int,
@@ -127,6 +128,7 @@ def create_task(
 def get_tasks(
   project_id: int,
   status: str | None = None,  # Query
+  keyword: str | None = None, 
   page: int = Query(default=1, ge=1),             
   page_size: int = Query(default=10, ge=1, le=100), # 最小値　１　さいしょうち   　最大値　１００
   db: Session = Depends(get_db),
@@ -137,6 +139,7 @@ def get_tasks(
     project_id,
     current_user,
     status,
+    keyword,
     page,
     page_size
   )

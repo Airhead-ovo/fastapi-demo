@@ -34,6 +34,7 @@ def get_tasks_service(
   project_id: int,
   current_user: User,
   status: str | None,
+  keyword: str | None,
   page: int,
   page_size: int
 ):
@@ -46,6 +47,7 @@ def get_tasks_service(
     db,
     project.id,
     status,
+    keyword,
     page,
     page_size
   )
