@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from database import get_db
 
@@ -126,11 +126,17 @@ def create_task(
 )
 def get_tasks(
   project_id: int,
+  status: str | None = None,  # Query
+  page: int = Query(default=1, ge=1),             
+  page_size: int = Query(default=10, ge=1, le=100), # 最小値　１　さいしょうち   　最大値　１００
   db: Session = Depends(get_db),
   current_user: User = Depends(get_current_user)
 ):
   return get_tasks_service(
     db,
     project_id,
-    current_user
+    current_user,
+    status,
+    page,
+    page_size
   )

@@ -32,7 +32,10 @@ def create_task_service(
 def get_tasks_service(
   db: Session,
   project_id: int,
-  current_user: User
+  current_user: User,
+  status: str | None,
+  page: int,
+  page_size: int
 ):
   project = get_project_service(
     db, 
@@ -41,5 +44,8 @@ def get_tasks_service(
   )
   return get_tasks(
     db,
-    project.id
+    project.id,
+    status,
+    page,
+    page_size
   )

@@ -23,9 +23,26 @@ def create_task(
 
 def get_tasks(
   db: Session,
-  project_id: int
+  project_id: int,
+  status: str | None,
+  page: int,
+  page_size: int
 ):
-  return db.scalars(
-    select(Task)
-    .where(Task.project_id == project_id)
+  query = select(Task).where(
+    Task.project_id == project_id
   )
+
+  if status is not None: 
+    query = query.where(
+      Task.status == status
+    )
+
+  offset = (page - 1) * page_size  
+
+  query = (
+    query
+    .offset(offset)  # 前面跳过多少条
+    .limit(page_size)  # 最多取多少条
+  )
+
+  return db.scalars(query).all()
