@@ -13,7 +13,10 @@ from services.project import (
 )
 from services.task import (
   create_task_service,
-  get_tasks_service
+  get_tasks_service,
+  get_task_service,
+  update_task_service,
+  delete_task_service
 )
 from schemas.project import (
   ProjectCreate,
@@ -23,7 +26,8 @@ from schemas.project import (
 from schemas.task import (
   TaskListResponse,
   TaskCreate,
-  TaskResponse
+  TaskResponse,
+  TaskUpdate
 )
 
 router = APIRouter( 
@@ -142,4 +146,57 @@ def get_tasks(
     keyword,
     page,
     page_size
+  )
+
+@router.get(
+  "/{project_id}/tasks/{task_id}",
+  response_model=TaskResponse
+)
+def get_task(
+  project_id: int,
+  task_id: int,
+  db: Session = Depends(get_db),
+  current_user: User = Depends(get_current_user)
+):
+  return get_task_service(
+    db,
+    current_user,
+    project_id,
+    task_id
+  )
+
+@router.patch(
+  "/{project_id}/tasks/{task_id}",
+  response_model=TaskResponse
+)
+def update_task(
+  data: TaskUpdate,
+  project_id: int,
+  task_id: int,
+  db: Session = Depends(get_db),
+  current_user: User = Depends(get_current_user)
+): 
+  return update_task_service(
+    db,
+    current_user,
+    data,
+    project_id,
+    task_id
+  )
+
+@router.delete(
+  "/{project_id}/tasks/{task_id}",
+  status_code=204 # DELETE成功しだけど、返すデータはない
+)
+def delete_task(
+  project_id: int,
+  task_id: int,
+  db: Session = Depends(get_db),
+  current_user: User = Depends(get_current_user)
+): 
+  return delete_task_service(
+    db,
+    current_user,
+    project_id,
+    task_id
   )

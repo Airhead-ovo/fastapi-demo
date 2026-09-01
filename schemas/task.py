@@ -19,3 +19,8 @@ class TaskListResponse(BaseModel):
   page: int
   page_size: int
   total: int
+
+class TaskUpdate(BaseModel):
+  title: str | None = None
+  description: str | None = None
+  status: str | None = None

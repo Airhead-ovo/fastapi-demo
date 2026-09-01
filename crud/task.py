@@ -2,6 +2,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 
 from models.task import Task
+from schemas.task import TaskUpdate
+
 
 def create_task(
   db: Session,
@@ -64,3 +66,36 @@ def get_tasks(
   ).all()
 
   return tasks, total
+
+def get_task_by_id(
+  db: Session,
+  task_id: int  
+):
+  query = select(Task).where(
+    Task.id == task_id
+  )
+  return db.scalar(query)
+  # return db.get(Task, task_id)
+
+def update_task(
+  db: Session,
+  task: Task,
+  data: TaskUpdate
+):
+  update_data = data.model_dump(
+    exclude_unset=True
+  )
+  for field, value in update_data.items():
+    setattr(task, field, value)
+
+  db.commit()
+  db.refresh(task)
+
+  return task
+
+def delete_task(
+  db: Session,
+  task: Task
+):
+  db.delete(task)
+  db.commit()
