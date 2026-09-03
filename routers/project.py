@@ -4,6 +4,8 @@ from database import get_db
 
 from services.auth import get_current_user
 from models.user import User
+from models.task import TaskStatus
+
 from services.project import (
   create_project_service,
   get_my_projects_service,
@@ -131,7 +133,7 @@ def create_task(
 )
 def get_tasks(
   project_id: int,
-  status: str | None = None,  # Query
+  status: TaskStatus | None = None,  # Query
   keyword: str | None = None, 
   page: int = Query(default=1, ge=1),             
   page_size: int = Query(default=10, ge=1, le=100), # 最小値　１　さいしょうち   　最大値　１００

@@ -1,7 +1,10 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 
-from models.task import Task
+from models.task import (
+  Task,
+  TaskStatus
+)
 from schemas.task import TaskUpdate
 
 
@@ -26,7 +29,7 @@ def create_task(
 def get_tasks(
   db: Session,
   project_id: int,
-  status: str | None,
+  status: TaskStatus | None,
   keyword: str | None,
   page: int,
   page_size: int

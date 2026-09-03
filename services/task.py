@@ -13,6 +13,7 @@ from schemas.task import (
   TaskUpdate
 )
 from models.user import User
+from models.task import TaskStatus
 
 from services.project import (
   get_project_service
@@ -41,7 +42,7 @@ def get_tasks_service(
   db: Session,
   project_id: int,
   current_user: User,
-  status: str | None,
+  status: TaskStatus | None,
   keyword: str | None,
   page: int,
   page_size: int

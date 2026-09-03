@@ -6,7 +6,7 @@ from passlib.context import CryptContext
 
 SECRET_KEY = "my-secret-key"
 ALGORITHM = "HS256" # 署名アルゴリズム
-ACCESS_TOKEN_EXPIRE_MINUTES = 30 # 有効期限
+ACCESS_TOKEN_EXPIRE_MINUTES = 300 # 有効期限 
 
 pwd_context = CryptContext(
     schemes=["bcrypt"],
