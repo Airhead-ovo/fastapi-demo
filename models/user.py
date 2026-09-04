@@ -15,3 +15,6 @@ class User(Base):
   projects: Mapped[list["Project"]] = relationship(
     back_populates="owner"
   )
+  conversations: Mapped[list["Conversation"]] = relationship(
+    back_populates="user" 
+  )
