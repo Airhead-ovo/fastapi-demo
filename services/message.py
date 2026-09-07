@@ -6,7 +6,10 @@ from crud.message import (
   get_messages
 )
 from models.user import User
-from clients.llm_client import chat_with_llm
+from clients.llm_client import (
+  chat_with_llm,
+  stream_chat_with_llm
+)
 from crud.conversation import get_conversation_by_id
 
 def send_message_service(
@@ -67,6 +70,54 @@ def send_message_service(
     "content": reply
   }
 
+def stream_message_service(
+  db: Session,
+  conversation_id: int,
+  content: str,
+  current_user: User
+):
+  conversation = get_conversation_by_id(db, conversation_id)
+  if conversation is None:
+    raise HTTPException(
+      status_code=404,
+      detail="conversationが見つかりません"
+    )
+  if conversation.user_id != current_user.id:
+    raise HTTPException(
+      status_code=status.HTTP_403_FORBIDDEN,
+      # 　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　けんげん
+      detail="このconversationをアクセスする権限はありません"
+    )
 
+  create_message(
+    db,
+    conversation_id,
+    "user",
+    content
+  )
+
+  db_messages = get_messages(
+    db,
+    conversation_id
+  )
+  messages = [
+    {
+        "role": message.role,
+        "content": message.content
+    }
+    for message in db_messages
+  ]
+
+  full_reply = ""
+  for chunk in stream_chat_with_llm(messages):
+    full_reply += chunk
+    yield f"data: {chunk}\n\n"
+
+  create_message(
+      db,
+      conversation_id,
+      "assistant",
+      full_reply
+  )
 
   

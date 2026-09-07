@@ -19,3 +19,16 @@ def chat_with_llm(messages):
     )
 
     return response.choices[0].message.content
+
+def stream_chat_with_llm(messages):
+    stream = client.chat.completions.create(
+        model="qwen3.7-plus",
+        messages=messages,
+        stream=True
+    )
+
+    for chunk in stream:
+        content = chunk.choices[0].delta.content
+
+        if content:
+            yield content
