@@ -32,3 +32,65 @@ def stream_chat_with_llm(messages):
 
         if content:
             yield content
+
+
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "create_task",
+            "description": "指定したProjectに新しいTaskを作成する",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "project_id": {
+                        "type": "integer",
+                        "description": "Taskを作成するProjectのID"
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Taskのタイトル"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Taskの説明"
+                    }
+                },
+                "required": [
+                    "project_id",
+                    "title"
+                ]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_tasks",
+            "description": "指定したProjectのTask一覧を取得する",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "project_id": {
+                        "type": "integer",
+                        "description": "Task一覧を取得するProjectのID"
+                    },
+                    "status": {
+                        "type": "string",
+                        "description": "Taskのステータス",
+                        "enum": ["todo", "doing", "done"]
+                    }
+                },
+                "required": ["project_id"]
+            }
+        }
+    }
+]
+
+def chat_with_tools(messages):
+    response = client.chat.completions.create(
+        model="qwen3.7-plus",
+        messages=messages,
+        tools=tools
+    )
+    return response.choices[0].message
