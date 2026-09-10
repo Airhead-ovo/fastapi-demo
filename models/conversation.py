@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, Text
 from sqlalchemy.sql import func
 from datetime import datetime
 
@@ -24,6 +24,15 @@ class Conversation(Base):
 
   messages: Mapped[list["Message"]] = relationship(
     back_populates="conversations"
+  )
+
+  summary: Mapped[str | None] = mapped_column(
+    Text,
+    nullable=True
+  )
+
+  summary_message_id: Mapped[int | None] = mapped_column(
+    nullable=True
   )
 
   created_at: Mapped[datetime] = mapped_column(

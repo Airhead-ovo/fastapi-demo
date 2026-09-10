@@ -4,7 +4,7 @@ import json
 
 from crud.message import (
   create_message,
-  get_messages
+  get_recent_messages
 )
 from models.user import User
 from clients.llm_client import (
@@ -47,9 +47,10 @@ def send_message_service(
   )
 
   # 2️⃣歴史メッセージを取得して 　　LLMが必要とする形式に変換する
-  db_messages = get_messages(
+  db_messages = get_recent_messages(
     db,
-    conversation_id
+    conversation_id,
+    limit=20
   )
   messages = [
     {
@@ -77,11 +78,27 @@ def send_message_service(
   #   "content": reply
   # }
 
-  # 3️⃣　LLMを呼び出す
-  ai_message = chat_with_tools(messages)
+  while True:
+    # 3️⃣　LLMを呼び出す
+    ai_message = chat_with_tools(messages)
 
-  # tool_call があるか確認する
-  if ai_message.tool_calls:
+    #  Tool Callがない → 最終回答
+    if not ai_message.tool_calls:
+      assistant_message = create_message(
+        db,
+        conversation_id,
+        "assistant",
+        ai_message.content
+      )
+
+      return assistant_message
+
+    # tool_call がある
+    messages.append(
+      ai_message.model_dump()
+    )
+
+    # tool Callを処理する
     tool_call = ai_message.tool_calls[0]
     tool_name = tool_call.function.name
 
@@ -93,8 +110,8 @@ def send_message_service(
 
     if tool_function is None:
       raise HTTPException(
-          status_code=400,
-          detail="指定されたToolは存在しません"
+        status_code=400,
+        detail="指定されたToolは存在しません"
       )
 
     result = tool_function(
@@ -103,9 +120,6 @@ def send_message_service(
       **arguments
     )
           
-    messages.append(
-      ai_message.model_dump()
-    )
     messages.append({
       "role": "tool",
       "tool_call_id": tool_call.id,
@@ -115,25 +129,6 @@ def send_message_service(
         default=str
       )
     })
-    final_message = chat_with_tools(messages)
-    assistant_message = create_message(
-      db,
-      conversation_id,
-      "assistant",
-      final_message.content
-    )
-
-    return assistant_message
-
-  # 没有 tool_calls 的普通聊天
-  assistant_message = create_message(
-    db,
-    conversation_id,
-    "assistant",
-    ai_message.content
-  )
-
-  return assistant_message
 
 
 def stream_message_service(
@@ -162,10 +157,33 @@ def stream_message_service(
     content
   )
 
-  db_messages = get_messages(
+  db_messages = get_recent_messages(
     db,
-    conversation_id
+    conversation_id,
+    limit=20
   )
+
+  messages = []
+
+  if conversation.summary:
+    messages.append({
+      "role": "system",
+      "content":(
+        "これまでの会話の要約：\n"
+        + conversation.summary
+      )
+    })
+
+    print("summary", conversation.summary)
+
+    messages.extend([
+      {
+        "role": message.role,
+        "content": message.content
+      }
+      for message in db_messages
+    ])
+
   messages = [
     {
         "role": message.role,
@@ -173,6 +191,7 @@ def stream_message_service(
     }
     for message in db_messages
   ]
+  print("messages", messages)
 
   full_reply = ""
   for chunk in stream_chat_with_llm(messages):

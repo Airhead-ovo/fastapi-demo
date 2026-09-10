@@ -84,13 +84,110 @@ tools = [
                 "required": ["project_id"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_task",
+            "description": "指定したTaskの情報を更新する",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "project_id": {
+                        "type": "integer",
+                        "description": "ProjectのID"
+                    },
+                    "task_id": {
+                        "type": "integer",
+                        "description": "更新対象TaskのID"
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Taskのタイトル"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Taskの説明"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "todo",
+                            "doing",
+                            "done"
+                        ]
+                    }
+                },
+                "required": [
+                    "project_id",
+                    "task_id"
+                ]
+            }
+        }
     }
 ]
 
 def chat_with_tools(messages):
+    request_messages = [
+        {
+            "role": "system",
+            "content": SYSTEM_PROMPT
+        },
+        *messages
+    ]
     response = client.chat.completions.create(
         model="qwen3.7-plus",
-        messages=messages,
+        messages=request_messages,
         tools=tools
     )
     return response.choices[0].message
+
+
+SYSTEM_PROMPT = """
+    あなたはTask管理システムを操作するAIアシスタントです。
+
+    以下のルールを必ず守ってください。
+
+    1. Taskを更新する際、task_idが不明な場合は、
+        まずget_tasksを使用して対象Taskを特定してください。
+
+    2. Project IDやTask IDが不明な場合は推測しないでください。
+
+    3. Toolの実行結果だけを事実として扱ってください。
+
+    4. Toolの実行に必要な情報が不足している場合は、
+        ユーザーに確認してください。
+
+    5. Taskの作成・取得・更新には、
+        利用可能なToolを使用してください。
+"""
+
+def summarize_conversation(
+    old_summary: str | None,
+    messages: list
+):
+    prompt = f"""
+        以下の会話内容を簡潔に要約してください。
+
+        以前の要約：
+        {old_summary or "なし"}
+
+        新しい会話：
+        {messages}
+
+        今後の会話で必要になる情報を残してください。
+        特に、Project、Task、ユーザーの依頼内容、
+        すでに完了した操作を優先してください。
+    """
+
+    response = client.chat.completions.create(
+        model="qwen3.7-plus",
+        messages=[
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+    )
+
+    return response.choices[0].message.content

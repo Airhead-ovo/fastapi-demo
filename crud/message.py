@@ -22,12 +22,20 @@ def create_message(
 
   return message
 
-def get_messages(
+def get_recent_messages(
   db: Session,
-  conversation_id: int
+  conversation_id: int,
+  limit: int = 20
 ):
-  query = select(Message).where(
+  query = (
+    select(Message)
+    .where(
       Message.conversation_id == conversation_id
-    ).order_by(Message.created_at.asc())
+    )
+    .order_by(
+      Message.created_at.asc()
+    )
+    .limit(limit)
+  )
 
   return db.scalars(query).all()
