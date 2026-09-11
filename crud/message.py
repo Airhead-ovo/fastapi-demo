@@ -22,6 +22,17 @@ def create_message(
 
   return message
 
+def get_messages(
+  db: Session,
+  conversation_id: int
+):
+  query = (
+    select(Message)
+    .where(Message.conversation_id == conversation_id)
+  )
+
+  return db.scalars(query).all()
+
 def get_recent_messages(
   db: Session,
   conversation_id: int,

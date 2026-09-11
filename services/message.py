@@ -46,7 +46,7 @@ def send_message_service(
     raise HTTPException(
       status_code=status.HTTP_403_FORBIDDEN,
       # 　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　けんげん
-      detail="このconversationをアクセスする権限はありません"
+      detail="このconversationにアクセスする権限はありません"
     )
   
   # 1️⃣ユーザーのメッセージを保存する

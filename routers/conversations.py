@@ -18,7 +18,8 @@ from services.message import (
 )
 from services.conversation import (
   create_conversation_service,
-  get_conversations_service
+  get_conversations_service,
+  get_messages_by_conversation_id_service
 )
 
 router = APIRouter( 
@@ -93,4 +94,19 @@ def get_conversations(
   return get_conversations_service(
     db,
     current_user
+  )
+
+@router.get(
+  "/{conversation_id}/messages",
+  response_model=list[MessageResponse]
+)
+def get_messages_by_conversation_id(
+  conversation_id: int,
+  db: Session = Depends(get_db),
+  current_user: User = Depends(get_current_user),
+):
+  return get_messages_by_conversation_id_service (
+    conversation_id,
+    db,
+    current_user,
   )
