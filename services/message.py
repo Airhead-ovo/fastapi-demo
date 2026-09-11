@@ -89,7 +89,8 @@ def send_message_service(
   #   "content": reply
   # }
 
-  while True:
+  MAX_TOOL_STEPS = 5  # 無限ループを防ぐために、tool実行回数に上限を設ける
+  for step in range(MAX_TOOL_STEPS):
     # 3️⃣　LLMを呼び出す
     ai_message = chat_with_tools(messages)
 
@@ -115,47 +116,52 @@ def send_message_service(
 
     # tool_call がある
     messages.append(
-      ai_message.model_dump()
+      ai_message.model_dump()# 把Pydantic basemodel变成普通对象dict
     )
 
     # tool Callを処理する
-    tool_call = ai_message.tool_calls[0]
-    tool_name = tool_call.function.name
+    for tool_call in ai_message.tool_calls:
+      tool_name = tool_call.function.name
 
-    arguments = json.loads(
-      tool_call.function.arguments
-    )
-
-    logger.info(
-      "Tool requested: name=%s, call_id=%s, arguments=%s",
-      tool_name,
-      tool_call.id,
-      arguments
-    )
-
-    tool_function = TOOL_REGISTRY.get(tool_name)
-
-    if tool_function is None:
-      raise HTTPException(
-        status_code=400,
-        detail="指定されたToolは存在しません"
+      arguments = json.loads(
+        tool_call.function.arguments
       )
 
-    result = tool_function(
-      db,
-      current_user,
-      **arguments
-    )
+      logger.info(
+        "Tool requested: name=%s, call_id=%s, arguments=%s",
+        tool_name,
+        tool_call.id,
+        arguments
+      )
+
+      tool_function = TOOL_REGISTRY.get(tool_name)
+
+      if tool_function is None:
+        raise HTTPException(
+          status_code=400,
+          detail="指定されたToolは存在しません"
+        )
+
+      result = tool_function(
+        db,
+        current_user,
+        **arguments
+      )
           
-    messages.append({
-      "role": "tool",
-      "tool_call_id": tool_call.id,
-      "content": json.dumps(
-        result,
-        ensure_ascii=False,
-        default=str
-      )
-    })
+      messages.append({
+        "role": "tool",
+        "tool_call_id": tool_call.id,
+        "content": json.dumps(
+          result,
+          ensure_ascii=False,
+          default=str
+        )
+      })
+
+  raise HTTPException(
+    status_code=500,
+    detail="Toolの実行回数が上限を超えました"
+  )
 
 
 def stream_message_service(
