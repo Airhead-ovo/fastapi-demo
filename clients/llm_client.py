@@ -124,6 +124,67 @@ tools = [
                 ]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_projects",
+            "description": "ログインユーザーが所有するproject一覧を取得する",
+            "parameters": {
+                "type": "object",
+                "properties": {}
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_project",
+            "description": "新しいprojectを作成する",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "projectのタイトル"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "projectの説明"
+                    }
+                },
+                "required": [
+                    "name"
+                ]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_project",
+            "description": "指定されたprojectを変更する",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "project_id": {
+                        "type": "integer",
+                        "description": "projectのid"  
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "projectのタイトル"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "projectの説明"
+                    }
+                },
+                "required": [
+                    "project_id"
+                ]
+            }
+        }
     }
 ]
 
@@ -135,6 +196,10 @@ def chat_with_tools(messages):
         },
         *messages
     ]
+    print([
+        tool["function"]["name"]
+        for tool in tools
+    ])
     response = client.chat.completions.create(
         model="qwen3.7-plus",
         messages=request_messages,

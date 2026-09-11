@@ -142,11 +142,18 @@ def send_message_service(
           detail="指定されたToolは存在しません"
         )
 
-      result = tool_function(
-        db,
-        current_user,
-        **arguments
-      )
+      try:
+        result = tool_function(
+          db,
+          current_user,
+          **arguments
+        )
+      except HTTPException as e:
+        result = {
+          "success": False,
+          "status_code": e.status_code,
+          "error": e.detail
+        }
           
       messages.append({
         "role": "tool",
