@@ -1,23 +1,34 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 import json
+import logging
 
 from crud.message import (
   create_message,
   get_recent_messages
 )
 from models.user import User
+from models.conversation import Conversation
 from clients.llm_client import (
   chat_with_llm,
   stream_chat_with_llm,
-  chat_with_tools
+  chat_with_tools,
+  summarize_conversation
 )
 from schemas.task import (
   TaskCreate
 )
-from crud.conversation import get_conversation_by_id
+from crud.conversation import (
+  get_conversation_by_id,
+  update_conversation_summary
+)
 from services.task import create_task_service
 from tools.task_tools import TOOL_REGISTRY
+from crud.message import (
+  get_unsummarized_messages
+)
+
+logger = logging.getLogger(__name__)
 
 def send_message_service(
   db: Session,
@@ -91,6 +102,15 @@ def send_message_service(
         ai_message.content
       )
 
+      update_conversation_summary(
+        db,
+        conversation
+      )
+
+      logger.info(
+        "Tool loop finished: final_answer=%r",
+        ai_message.content
+      )
       return assistant_message
 
     # tool_call がある
@@ -104,6 +124,13 @@ def send_message_service(
 
     arguments = json.loads(
       tool_call.function.arguments
+    )
+
+    logger.info(
+      "Tool requested: name=%s, call_id=%s, arguments=%s",
+      tool_name,
+      tool_call.id,
+      arguments
     )
 
     tool_function = TOOL_REGISTRY.get(tool_name)
@@ -205,4 +232,36 @@ def stream_message_service(
       full_reply
   )
 
+def update_conversation_summary(
+  db: Session,
+  conversation: Conversation
+):
+  old_messages = get_unsummarized_messages(
+    db,
+    conversation.id,
+    conversation.summary_message_id
+  )
+
+  if len(old_messages) < 40:
+    return
+
+  summary_messages = [
+    {
+      "role": message.role,
+      "content": message.content
+    }
+    for message in old_messages
+  ]
+
+  new_summary = summarize_conversation(
+    conversation.summary,
+    summary_messages
+  )
+
+  return update_conversation_summary(
+    db,
+    conversation,
+    new_summary,
+    old_messages[-1].id # old_messages[-1]はlistで最後のメッセージ
+  )
   

@@ -39,3 +39,28 @@ def get_recent_messages(
   )
 
   return db.scalars(query).all()
+
+def get_unsummarized_messages(
+  db: Session,
+  conversation_id: int,
+  summary_message_id: int | None,
+  limit: int = 20
+):
+  query = (
+    select(Message)
+    .where(
+      Message.conversation_id == conversation_id
+    )
+    .order_by(
+      Message.id.asc()
+    )
+  )
+
+  if summary_message_id is not None:
+    query = query.where(
+      Message.id > summary_message_id
+    )
+
+  query = query.limit(limit)
+  
+  return db.scalars(query).all()

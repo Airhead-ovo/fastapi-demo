@@ -22,3 +22,17 @@ def get_conversation_by_id(
   conversation_id: int
 ):
   return db.get(Conversation, conversation_id)
+
+def update_conversation_summary(
+  db: Session,
+  conversation: Conversation,
+  summary: str,
+  summary_message_id: int
+):
+  conversation.summary = summary
+  conversation.summary_message_id = summary_message_id
+
+  db.commit()
+  db.refresh(conversation)
+
+  return conversation
