@@ -16,7 +16,10 @@ from services.message import (
   send_message_service,
   stream_message_service
 )
-from services.conversation import create_conversation_service
+from services.conversation import (
+  create_conversation_service,
+  get_conversations_service
+)
 
 router = APIRouter( 
   prefix="/conversations",
@@ -78,11 +81,16 @@ def stream_message(
     generator,
     media_type="text/event-stream"
   )
-  
 
-
-
-# POST /conversations
-
-# chatメッセージを取得する
-# GET /conversations/{conversation_id}/messages
+@router.get(
+  "",
+  response_model=list[ConversationResponse]
+)
+def get_conversations(
+  db: Session = Depends(get_db),
+  current_user:User = Depends(get_current_user)
+):
+  return get_conversations_service(
+    db,
+    current_user
+  )

@@ -1,5 +1,8 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import select
+
 from models.conversation import Conversation
+from models.user import User
 
 def create_conversation(
   db: Session,
@@ -36,3 +39,14 @@ def update_conversation_summary(
   db.refresh(conversation)
 
   return conversation
+
+def get_conversations(
+  db: Session,
+  user_id: int
+):
+  query = (
+    select(Conversation)
+    .where(Conversation.user_id == user_id)
+    .order_by(Conversation.created_at.desc())
+  )
+  return db.scalars(query).all()
