@@ -10,20 +10,18 @@ from crud.message import (
 from models.user import User
 from models.conversation import Conversation
 from clients.llm_client import (
-  chat_with_llm,
   stream_chat_with_llm,
   chat_with_tools,
   summarize_conversation
-)
-from schemas.task import (
-  TaskCreate
 )
 from crud.conversation import (
   get_conversation_by_id,
   update_conversation_summary
 )
-from services.task import create_task_service
-from tools.task_tools import TOOL_REGISTRY
+from tools.task_tools import (
+  TOOL_REGISTRY,
+  TOOL_SCHEMA_REGISTRY
+)
 from crud.message import (
   get_unsummarized_messages
 )
@@ -108,7 +106,7 @@ def send_message_service(
         conversation
       )
 
-      logger.info(
+      print(
         "Tool loop finished: final_answer=%r",
         ai_message.content
       )
@@ -126,8 +124,13 @@ def send_message_service(
       arguments = json.loads(
         tool_call.function.arguments
       )
+      
+      # tool_schema = TOOL_SCHEMA_REGISTRY.get(tool_name)
+      # validated = tool_schema(
+      #   **arguments
+      # )
 
-      logger.info(
+      print(
         "Tool requested: name=%s, call_id=%s, arguments=%s",
         tool_name,
         tool_call.id,

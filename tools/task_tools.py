@@ -16,6 +16,10 @@ from schemas.project import (
   ProjectCreate,
   ProjectUpdate
 )
+from schemas.tool import (
+  CreateProjectToolArgs,
+  GetProjectsToolArgs
+)
 
 def create_task_tool(
   db,
@@ -192,4 +196,9 @@ TOOL_REGISTRY = {
   "get_projects": get_projects_tool,
   "create_project": create_project_tool,
   "update_project": update_project_tool
+}
+
+TOOL_SCHEMA_REGISTRY = {
+  "create_project": CreateProjectToolArgs,
+  "get_projects" :GetProjectsToolArgs
 }
