@@ -227,7 +227,7 @@ def send_message_stream_service(
         {
           "role": "tool",
           "tool_call_id": tool_data["id"],
-          "content": json.dumps(
+          "content": json.dumps( # 变成字符串
             result,
             ensure_ascii=False,
             default=str
