@@ -12,33 +12,35 @@ from models.conversation import Conversation
 from clients.llm_client import (
   stream_chat_with_llm,
   chat_with_tools,
-  summarize_conversation
+  summarize_conversation,
+  stream_chat_with_tools
 )
 from crud.conversation import (
   get_conversation_by_id,
   update_conversation_summary
 )
 from tools.task_tools import (
-  TOOL_REGISTRY,
-  TOOL_SCHEMA_REGISTRY
+  TOOL_REGISTRY
 )
 from crud.message import (
   get_unsummarized_messages
 )
+from utils.sse import sse_event
 
 logger = logging.getLogger(__name__)
 
-def send_message_service(
+def send_message_stream_service(
   db: Session,
   conversation_id: int,
   content: str,
   current_user: User
 ):
+  # conversationと権限を確認
   conversation = get_conversation_by_id(db, conversation_id)
   if conversation is None:
     raise HTTPException(
       status_code=404,
-      detail="conversationが見つかりません"
+      detail="指定されたconversationが見つかりません"
     )
   if conversation.user_id != current_user.id:
     raise HTTPException(
@@ -47,7 +49,7 @@ def send_message_service(
       detail="このconversationにアクセスする権限はありません"
     )
   
-  # 1️⃣ユーザーのメッセージを保存する
+  # まずユーザーメッセージをdbに保存する
   create_message(
     db,
     conversation_id,
@@ -55,12 +57,13 @@ def send_message_service(
     content
   )
 
-  # 2️⃣歴史メッセージを取得して 　　LLMが必要とする形式に変換する
+  # 直近（ちょっきん）２０件の会話歴史を取得して　　LLMに渡す
   db_messages = get_recent_messages(
     db,
     conversation_id,
     limit=20
   )
+  # SQLAlchemy Messageはdictに変換する
   messages = [
     {
       "role": message.role,
@@ -69,104 +72,168 @@ def send_message_service(
     for message in db_messages
   ] # リスト内包表記 　　ないほうひょうき
 
-  # # 3️⃣大模型を呼び出す　　　　だいもけい
-  # reply = chat_with_llm(messages)
-
-  # # 4️⃣aiの回答を保存する
-  # create_message(
-  #   db,
-  #   conversation_id,
-  #   "assistant",
-  #   reply
-  # )
-
-  # return {
-  #   "id": current_user.id,
-  #   "role": "assistant",
-  #   "conversation_id": conversation_id,
-  #   "content": reply
-  # }
-
   MAX_TOOL_STEPS = 5  # 無限ループを防ぐために、tool実行回数に上限を設ける
   for step in range(MAX_TOOL_STEPS):
-    # 3️⃣　LLMを呼び出す
-    ai_message = chat_with_tools(messages)
+    tool_calls_buffer = {}
+    full_content = ""
 
-    #  Tool Callがない → 最終回答
-    if not ai_message.tool_calls:
-      assistant_message = create_message(
+    #　LLMをストリーミングで呼び出す
+    stream = stream_chat_with_tools(messages)
+
+    # LLMのレスポンスをchunk単位で受け取る
+    for chunk in stream:
+
+      # choicesが空のchunkはスキップする
+      if not chunk.choices:
+        continue
+
+      delta = chunk.choices[0].delta
+      # 1️⃣　普通の回答を受け取る　：　deltaに追加して　すぐフロントへ送信
+      if delta.content:
+        full_content += delta.content # db保存用に
+
+        yield sse_event(
+          "content",
+          {
+            "content": delta.content # フロントエンドへ逐次送信　ちくじ　そうしん
+          }
+        )
+      #　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　ぶんかつ 　　　　　　　　　　　　　　　　　　　　　　　けつごう
+      #　2️⃣ tool　callを受け取る　：分割されたtool callを結合
+      if delta.tool_calls:
+
+        for tool_call in delta.tool_calls:
+
+          index = tool_call.index
+
+          if index not in tool_calls_buffer:
+            tool_calls_buffer[index] = {
+              "id": tool_call.id,
+              "name": "",
+              "arguments": ""
+            }
+
+          if tool_call.id:
+            tool_calls_buffer[index]["id"] = (
+              tool_call.id
+            )
+
+          if tool_call.function.name:
+            tool_calls_buffer[index]["name"] += (
+              tool_call.function.name
+            )
+          
+          if tool_call.function.arguments:
+            tool_calls_buffer[index]["arguments"] += (
+              tool_call.function.arguments
+            )
+
+    #  Tool Callがなくなる → 最終回答
+    if not tool_calls_buffer:
+
+      create_message(
         db,
         conversation_id,
         "assistant",
-        ai_message.content
+        full_content
       )
 
-      update_conversation_summary(
+      # summaryを更新
+      update_conversation_summary_service(
         db,
         conversation
       )
 
-      print(
-        "Tool loop finished: final_answer=%r",
-        ai_message.content
+      # ストリーム終了を通知
+      yield sse_event(
+        "done",
+        {}
       )
-      return assistant_message
+      return # Generatorが終了
+    
+    # tool callがある
+    # tool callをassistant　messageとして歴史に追加
+    assistant_tool_calls = []
 
-    # tool_call がある
+    for tool_data in tool_calls_buffer.values():
+      assistant_tool_calls.append(
+        {
+          "type": "function",
+          "id": tool_data["id"],
+          "function": {
+            "name": tool_data["name"],
+            "arguments": tool_data["arguments"]
+          }
+        }
+      )
+
     messages.append(
-      ai_message.model_dump()# 把Pydantic basemodel变成普通对象dict
+      {
+        "role": "assistant",
+        "content": None,
+        "tool_calls": assistant_tool_calls
+      }
     )
 
-    # tool Callを処理する
-    for tool_call in ai_message.tool_calls:
-      tool_name = tool_call.function.name
+    # toolを実行
+    for tool_data in tool_calls_buffer.values():
+
+      tool_name = tool_data["name"]
 
       arguments = json.loads(
-        tool_call.function.arguments
+        tool_data["arguments"]
       )
-      
-      # tool_schema = TOOL_SCHEMA_REGISTRY.get(tool_name)
-      # validated = tool_schema(
-      #   **arguments
-      # )
-
-      print(
-        "Tool requested: name=%s, call_id=%s, arguments=%s",
-        tool_name,
-        tool_call.id,
-        arguments
+    
+      yield sse_event(
+        "tool_start",
+        {
+          "tool_name": tool_name
+        }
       )
-
-      tool_function = TOOL_REGISTRY.get(tool_name)
-
+    
+      tool_function = TOOL_REGISTRY.get(
+        tool_name
+      )
+    
       if tool_function is None:
         raise HTTPException(
           status_code=400,
           detail="指定されたToolは存在しません"
         )
-
+      
       try:
         result = tool_function(
           db,
           current_user,
           **arguments
         )
+
       except HTTPException as e:
         result = {
           "success": False,
           "status_code": e.status_code,
           "error": e.detail
         }
-          
-      messages.append({
-        "role": "tool",
-        "tool_call_id": tool_call.id,
-        "content": json.dumps(
-          result,
-          ensure_ascii=False,
-          default=str
-        )
-      })
+    
+      yield sse_event(
+        "tool_end",
+        {
+          "tool_name": tool_name
+        }
+      )
+
+      # Toolの実行結果を履歴に追加
+      messages.append(
+        {
+          "role": "tool",
+          "tool_call_id": tool_data["id"],
+          "content": json.dumps(
+            result,
+            ensure_ascii=False,
+            default=str
+          )
+        }
+      )
 
   raise HTTPException(
     status_code=500,
@@ -174,6 +241,7 @@ def send_message_service(
   )
 
 
+# 簡単なstream
 def stream_message_service(
   db: Session,
   conversation_id: int,
@@ -184,15 +252,17 @@ def stream_message_service(
   if conversation is None:
     raise HTTPException(
       status_code=404,
-      detail="conversationが見つかりません"
+      detail="指定されたConversationが見つかりません"
     )
+  
   if conversation.user_id != current_user.id:
     raise HTTPException(
       status_code=status.HTTP_403_FORBIDDEN,
       # 　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　けんげん
-      detail="このconversationをアクセスする権限はありません"
+      detail="このConversationにアクセスする権限はありません"
     )
 
+  # まずユーザーメッセージをdbに保存する
   create_message(
     db,
     conversation_id,
@@ -200,6 +270,7 @@ def stream_message_service(
     content
   )
 
+  # 直近（ちょっきん）２０件の会話歴史を取得して　　LLMに渡す
   db_messages = get_recent_messages(
     db,
     conversation_id,
@@ -227,14 +298,14 @@ def stream_message_service(
       for message in db_messages
     ])
 
+  # SQLAlchemy Messageはdictに変換する
   messages = [
     {
-        "role": message.role,
-        "content": message.content
+      "role": message.role,
+      "content": message.content
     }
     for message in db_messages
   ]
-  print("messages", messages)
 
   full_reply = ""
   for chunk in stream_chat_with_llm(messages):
@@ -248,7 +319,135 @@ def stream_message_service(
       full_reply
   )
 
-def update_conversation_summary(
+# 普通版本的 不带流式的
+def send_message_service(
+    db: Session,
+    conversation_id: int,
+    content: str,
+    current_user: User
+):
+    conversation = get_conversation_by_id(
+        db,
+        conversation_id
+    )
+
+    if conversation is None:
+        raise HTTPException(
+            status_code=404,
+            detail="指定されたConversationが見つかりません"
+        )
+
+    if conversation.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="このConversationにアクセスする権限がありません"
+        )
+
+    # 1️⃣ ユーザーのメッセージを保存
+    create_message(
+        db,
+        conversation_id,
+        "user",
+        content
+    )
+
+    # 2️⃣ LLMに渡す会話履歴を取得
+    db_messages = get_recent_messages(
+        db,
+        conversation_id
+    )
+
+    messages = [
+        {
+            "role": message.role,
+            "content": message.content
+        }
+        for message in db_messages
+    ]
+
+    MAX_TOOL_STEPS = 5
+
+    # 3️⃣ Agent Loop
+    for step in range(MAX_TOOL_STEPS):
+
+        ai_message = chat_with_tools(
+            messages
+        )
+
+        # Tool Callがない → 最終回答
+        if not ai_message.tool_calls:
+
+            assistant_message = create_message(
+                db,
+                conversation_id,
+                "assistant",
+                ai_message.content
+            )
+
+            update_conversation_summary_service(
+                db,
+                conversation
+            )
+
+            return assistant_message
+
+        # assistantのTool Call情報を履歴に追加
+        messages.append(
+            ai_message.model_dump()
+        )
+
+        # 4️⃣ Tool Callを処理
+        for tool_call in ai_message.tool_calls:
+
+            tool_name = tool_call.function.name
+
+            arguments = json.loads(
+                tool_call.function.arguments
+            )
+
+            tool_function = TOOL_REGISTRY.get(
+                tool_name
+            )
+
+            if tool_function is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="指定されたToolは存在しません"
+                )
+
+            try:
+                result = tool_function(
+                    db,
+                    current_user,
+                    **arguments
+                )
+
+            except HTTPException as e:
+                result = {
+                    "success": False,
+                    "status_code": e.status_code,
+                    "error": e.detail
+                }
+
+            # Tool実行結果をLLMの履歴に追加
+            messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": json.dumps(
+                        result,
+                        ensure_ascii=False,
+                        default=str
+                    )
+                }
+            )
+
+    raise HTTPException(
+        status_code=500,
+        detail="Toolの実行回数が上限を超えました"
+    )
+
+def update_conversation_summary_service(
   db: Session,
   conversation: Conversation
 ):

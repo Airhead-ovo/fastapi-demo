@@ -14,7 +14,7 @@ from models.user import User
 from services.auth import get_current_user
 from services.message import (
   send_message_service,
-  stream_message_service
+  send_message_stream_service
 )
 from services.conversation import (
   create_conversation_service,
@@ -71,7 +71,7 @@ def stream_message(
   db: Session = Depends(get_db),
   current_user: User = Depends(get_current_user)
 ):
-  generator =  stream_message_service(
+  generator =  send_message_stream_service(
     db,
     conversation_id,
     data.content,

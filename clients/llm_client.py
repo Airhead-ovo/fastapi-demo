@@ -196,10 +196,6 @@ def chat_with_tools(messages):
         },
         *messages
     ]
-    print([
-        tool["function"]["name"]
-        for tool in tools
-    ])
     response = client.chat.completions.create(
         model="qwen3.7-plus",
         messages=request_messages,
@@ -207,6 +203,21 @@ def chat_with_tools(messages):
     )
     return response.choices[0].message
 
+def stream_chat_with_tools(messages):
+    request_messages = [
+        {
+            "role": "system",
+            "content": SYSTEM_PROMPT
+        },
+        *messages
+    ]
+    response = client.chat.completions.create(
+        model="qwen3.7-plus",
+        messages=request_messages,
+        tools=tools,
+        stream=True
+    )
+    return response
 
 SYSTEM_PROMPT = """
     あなたはTask管理システムを操作するAIアシスタントです。
