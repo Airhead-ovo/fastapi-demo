@@ -39,13 +39,14 @@ docker stop c64f8ce47206
 
 ### 启动 compose.yaml 里的服务 启动前重新 build Image
 docker compose up --build
-### 关闭服务
+### 关闭并删除容器
 docker compose down
 
 ### 更新到requirements
 pip install redis
 pip freeze > requirements.txt
 
+### volume负责持久化数据
 docker volume ls
 
 ### 进入Redis Container
@@ -117,3 +118,20 @@ Python list / dict:
     {"id": 2, "name": "Python"}
   ]
 **loads =  JSON 字符串 → Python**
+
+---
+
+## AWS
+**一个提供云服务器、数据库、文件存储、网络等服务的平台。**
+
+- EC2
+→ 跑后端的云服务器
+
+- RDS
+→ 托管PostgreSQL / MySQL等数据库
+
+- S3
+→ 对象存储: 图片、上传文件、报告等
+
+- ECS
+→ 专门跑 Docker Container 的服务
