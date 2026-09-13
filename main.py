@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+import logging
 
 from routers.auth import router as auth_router
 from routers.user import router as user_router
@@ -18,3 +19,8 @@ app.include_router(user_router)
 app.include_router(admin_router)
 app.include_router(project_router)
 app.include_router(conversations_router)
+
+logging.basicConfig(
+  level=logging.INFO,
+  format="pikaovo | %(asctime)s | %(levelname)s | %(name)s | %(message)s"
+)

@@ -35,6 +35,12 @@ def send_message_stream_service(
   content: str,
   current_user: User
 ):
+  logger.info(
+    "Agent request received conversation_id=%s user_id=%s",
+    conversation_id,
+    current_user.id
+  ) 
+
   # conversationと権限を確認
   conversation = get_conversation_by_id(db, conversation_id)
   if conversation is None:
@@ -182,6 +188,12 @@ def send_message_stream_service(
 
       arguments = json.loads(
         tool_data["arguments"]
+      )
+      
+      logger.info(
+        "Tool execution started tool=%s conversation_id=%s",
+        tool_name,
+        conversation_id
       )
     
       yield sse_event(

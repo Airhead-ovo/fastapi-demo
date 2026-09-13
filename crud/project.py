@@ -53,9 +53,9 @@ def update_project(
   )
   for field, value in update_data.items(): # 1個ずつ取り出して
     setattr(
-          project,
-          field,
-          value
+        project,
+        field,
+        value
       )
 
   db.commit()

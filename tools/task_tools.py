@@ -121,19 +121,10 @@ def get_projects_tool(
   db,
   current_user
 ):
-  result = get_my_projects_service(
+  return get_my_projects_service(
     db,
     current_user
   )
-
-  return [
-    {
-      "id": project.id,
-      "description": project.description,
-      "name": project.name,
-    }
-    for project in result
-  ]
 
 def create_project_tool(
   db,
