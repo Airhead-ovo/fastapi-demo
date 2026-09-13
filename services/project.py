@@ -51,6 +51,7 @@ def get_my_projects_service(
     {
       "id": project.id,
       "name": project.name,
+      "owner_id": project.owner_id,
       "description": project.description
     }
     for project in projects
