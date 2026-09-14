@@ -39,6 +39,8 @@ docker stop c64f8ce47206
 
 ### 启动 compose.yaml 里的服务 启动前重新 build Image
 docker compose up --build
+### 本地启动
+docker compose -f compose.yaml -f compose.dev.yaml up --build
 ### 关闭并删除容器
 docker compose down
 
@@ -178,3 +180,9 @@ sudo du -h --max-depth=1 /home | sort -h *查看home文件夹下的文件夹分�
 df -h　*查看剩余磁盘空间*
 free -h *查看内存*
 top *查看cpu占用 top里面p按cpu排序 m按内存排序 q退出*
+
+nano
+Ctrl + O    保存（Write Out）
+Enter       确认文件名 compose.yaml
+Ctrl + X    退出
+Ctrl + K　　删除当前整行
