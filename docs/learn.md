@@ -41,6 +41,8 @@ docker stop c64f8ce47206
 docker compose up --build
 ### 本地启动
 docker compose -f compose.yaml -f compose.dev.yaml up --build
+### 服务器启动
+docker compose up -d --build
 ### 关闭并删除容器
 docker compose down
 
