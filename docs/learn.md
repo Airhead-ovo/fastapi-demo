@@ -135,3 +135,39 @@ Python list / dict:
 
 - ECS
 → 专门跑 Docker Container 的服务
+
+---
+
+## 常见指令
+### cat 查看文件
+cat .env
+### tail 查看最后几行文件  f是持续查看新的报错
+tail -f app.log
+docker compose logs -f
+### grep 搜索文本
+grep "ERROR" app.log 
+### | 管道符 把左边的输出交给右边接着处理
+docker compose logs | grep "ERROR"
+### ps 看进程
+ps
+ps aux | grep uvicorn
+```
+出现
+aaa              30459   0.0  0.0 435299856   1376 s014  S+    7:41PM   0:00.00 grep uvicorn
+30459是进程  可以通过kill去终止
+```
+### kill终止进程
+kill 30459
+kill -9 30459  强制终止
+### curl
+curl http://localhost:8000/
+### docker相关指令
+docker compose ps  *查看进程*
+docker compose logs api  *查看api日志*
+docker compose logs -f api   *实时查看*
+docker compose restart api   *重启服务*
+### 常见linux命令
+mkdir logs *创建目录*
+rm file.txt  *删除文件*
+cp a.txt b.txt *复制a到b*
+mv old.txt new.txt  *移动*
