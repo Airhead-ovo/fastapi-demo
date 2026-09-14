@@ -163,6 +163,7 @@ kill -9 30459  强制终止
 curl http://localhost:8000/
 ### docker相关指令
 docker compose ps  *查看进程*
+docker ps *看整台机器正在运行的container*
 docker compose logs api  *查看api日志*
 docker compose logs -f api   *实时查看*
 docker compose restart api   *重启服务*
@@ -171,3 +172,8 @@ mkdir logs *创建目录*
 rm file.txt  *删除文件*
 cp a.txt b.txt *复制a到b*
 mv old.txt new.txt  *移动*
+sudo du -sh /home *查看home文件夹有多大*
+sudo du -h --max-depth=1 /home | sort -h *查看home文件夹下的文件夹分别有多大*
+df -h　*查看剩余磁盘空间*
+free -h *查看内存*
+top *查看cpu占用 top里面p按cpu排序 m按内存排序 q退出*
