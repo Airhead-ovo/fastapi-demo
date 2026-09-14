@@ -170,6 +170,7 @@ docker compose restart api   *重启服务*
 ### 常见linux命令
 mkdir logs *创建目录*
 rm file.txt  *删除文件*
+rmdir fastapi *删除文件夹*
 cp a.txt b.txt *复制a到b*
 mv old.txt new.txt  *移动*
 sudo du -sh /home *查看home文件夹有多大*
