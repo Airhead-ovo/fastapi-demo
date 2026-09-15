@@ -45,6 +45,8 @@ docker compose -f compose.yaml -f compose.dev.yaml up --build
 docker compose up -d --build
 ### 关闭并删除容器
 docker compose down
+### 查看进程
+docker compose ps
 
 ### 更新到requirements
 pip install redis
