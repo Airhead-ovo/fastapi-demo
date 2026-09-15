@@ -12,6 +12,10 @@ services:
         condition: service_started
     volumes:
       - ./uploads:/app/uploads
+    networks:
+      - default
+      - ovo-network
+
 
   db:
     image: postgres:17
@@ -32,3 +36,7 @@ services:
 
 volumes:
   postgres_data:
+
+networks:
+  ovo-network:
+    external: true
