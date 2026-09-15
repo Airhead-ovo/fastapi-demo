@@ -49,5 +49,13 @@ cd fastapi-demo
 
 ### 2.start
 ```
-docker compose up --build
+docker compose up -d --build
+```
+起動状態を確認
+```
+docker compose ps
+```
+ログを確認
+```
+docker compose logs -f api
 ```

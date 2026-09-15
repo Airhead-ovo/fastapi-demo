@@ -90,6 +90,7 @@ docker compose logs api  *查看api日志*
 docker compose logs --tail=100 api  *查看接口最近报错*
 docker compose logs -f api   *实时查看接口报错*
 docker compose restart api   *重启服务*
+ssh -L 18000:localhost:18000 5070ti   *服务映射到本地*
 ### 常见linux命令
 mkdir logs *创建目录*
 rm file.txt  *删除文件*
