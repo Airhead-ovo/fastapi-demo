@@ -60,90 +60,6 @@ docker compose exec redis redis-cli
 
 ---
 
-## SQLAlchemy 对象、Python dict、JSON 字符串
-SQLAlchemy对象
-    ↓ 手动取字段
-Python dict/list
-    ↓ json.dumps()
-JSON 字符串
-    ↓ json.loads()
-Python dict / list
-
-### SQLAlchemy对象:
-return get_my_projects(
-  db=db,
-  owner_id=current_user.id
-)
- ↓ ↓ ↓ ↓ ↓
-Project(
-  id=1,
-  name="AI Agent",
-  description="Agent项目"
-)
-调用方式: project.id, project.name, project.description
-
-### Python dict
-project_dict = {
-  "id": project.id,
-  "name": project.name,
-  "description": project.description,
-}
- ↓ ↓ ↓ ↓ ↓
-{
-  "id": 1,
-  "name": "AI Agent",
-  "description": "Agent项目"
-} 
-
-如果有多个project:
-project_list = [
-  {
-    "id": project.id,
-    "name": project.name,
-    "description": project.description,
-  }
-  for project in projects
-]
- ↓ ↓ ↓ ↓ ↓
-project_list = [
-  {"id": 1, "name": "AI Agent"},
-  {"id": 2, "name": "Python"}
-]
-这还不是json字符串 是python list
-
-### json字符串
-通过 **json.dumps(project_list)** 把Python对象转换成JSON字符串
-**dumps = Python → JSON 字符串**
-
-json字符串: str = '[{"id": 1, "name": "AI Agent"}, {"id": 2, "name": "Python"}]'
-**json.loads(str)**
- ↓ ↓ ↓ ↓ ↓
-Python list / dict:
-  project_list = [
-    {"id": 1, "name": "AI Agent"},
-    {"id": 2, "name": "Python"}
-  ]
-**loads =  JSON 字符串 → Python**
-
----
-
-## AWS
-**一个提供云服务器、数据库、文件存储、网络等服务的平台。**
-
-- EC2
-→ 跑后端的云服务器
-
-- RDS
-→ 托管PostgreSQL / MySQL等数据库
-
-- S3
-→ 对象存储: 图片、上传文件、报告等
-
-- ECS
-→ 专门跑 Docker Container 的服务
-
----
-
 ## 常见指令
 ### cat 查看文件
 cat .env
@@ -171,7 +87,8 @@ curl http://localhost:8000/
 docker compose ps  *查看进程*
 docker ps *看整台机器正在运行的container*
 docker compose logs api  *查看api日志*
-docker compose logs -f api   *实时查看*
+docker compose logs --tail=100 api  *查看接口最近报错*
+docker compose logs -f api   *实时查看接口报错*
 docker compose restart api   *重启服务*
 ### 常见linux命令
 mkdir logs *创建目录*
