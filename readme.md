@@ -47,6 +47,9 @@ git clone <repository-url>
 cd fastapi-demo
 ```
 
+本地终端
+open -a Docker
+
 ### 2.start
 ```
 docker compose up -d --build
