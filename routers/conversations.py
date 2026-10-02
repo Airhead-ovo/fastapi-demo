@@ -9,12 +9,12 @@ from schemas.message import (
 )
 from schemas.conversation import (
   ConversationResponse,
-  ConversationUpdate
+  ConversationUpdate,
+  ConversationPinUpdate
 )
 from models.user import User
 from services.auth import get_current_user
 from services.message import (
-  send_message_service,
   send_message_stream_service
 )
 from services.conversation import (
@@ -22,7 +22,8 @@ from services.conversation import (
   get_conversations_service,
   get_messages_by_conversation_id_service,
   update_conversation_service,
-  delete_conversation_service
+  delete_conversation_service,
+  update_conversation_pinned_service
 )
 
 router = APIRouter( 
@@ -46,24 +47,6 @@ def create_conversation (
     current_user
   )
 
-
-# aiにメッセじを送信する
-@router.post(
-  "/{conversation_id}/messages",
-  response_model=MessageResponse
-)
-def send_message(
-  conversation_id: int,
-  data: MessageCreate,
-  db: Session = Depends(get_db),
-  current_user: User = Depends(get_current_user)
-):
-  return send_message_service(
-    db,
-    conversation_id,
-    data.content,
-    current_user
-  )
 
 @router.post(
   "/{conversation_id}/messages/stream",
@@ -142,6 +125,23 @@ def delete_conversation(
 ):
   delete_conversation_service(
     conversation_id,
+    db,
+    current_user
+  )
+
+@router.patch(
+  "/{conversation_id}/pinned",
+  response_model=ConversationResponse 
+)
+def update_conversation_pinned(
+  conversation_id: int,
+  data: ConversationPinUpdate,
+  db: Session = Depends(get_db),
+  current_user: User = Depends(get_current_user)
+):
+  return update_conversation_pinned_service(
+    conversation_id,
+    data,
     db,
     current_user
   )

@@ -10,6 +10,8 @@ from database import Base, DATABASE_URL
 from models.user import User
 from models.project import Project
 from models.task import Task
+from models.conversation import Conversation
+from models.message import Message
 
 config = context.config
 

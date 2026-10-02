@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select
+from datetime import datetime
 
 from models.conversation import Conversation
 from models.user import User
@@ -48,7 +49,11 @@ def get_conversations(
   query = (
     select(Conversation)
     .where(Conversation.user_id == user_id)
-    .order_by(Conversation.created_at.desc())
+    .order_by(
+      # asc是升序 从小到大/时间从早到晚 ,  nulls_last是空值放最后
+      Conversation.pinned_at.asc().nulls_last(),
+      Conversation.updated_at.desc()
+    )
   )
   return db.scalars(query).all()
 
@@ -77,3 +82,18 @@ def delete_conversation (
 ):
   db.delete(conversation)
   db.commit()
+
+def update_conversation_pinned (
+  pinned_at: datetime | None,
+  conversation,
+  db
+):
+  conversation.pinned_at = pinned_at
+  db.commit()
+  db.refresh(conversation)
+  return conversation
+
+def touch_conversation(
+  conversation: Conversation
+):
+  conversation.updated_at = datetime.now()

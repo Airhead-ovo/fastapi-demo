@@ -27,6 +27,8 @@ class Conversation(Base):
     cascade="all, delete-orphan" # 删除conversation时关联的messages也要删除
   )
 
+  pinned_at: Mapped[datetime | None]
+
   summary: Mapped[str | None] = mapped_column(
     Text,
     nullable=True

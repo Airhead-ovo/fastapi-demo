@@ -7,6 +7,7 @@ from crud.message import (
   create_message,
   get_recent_messages
 )
+from crud.conversation import touch_conversation
 from models.user import User
 from models.conversation import Conversation
 from clients.llm_client import (
@@ -29,6 +30,7 @@ from utils.sse import sse_event
 
 logger = logging.getLogger(__name__)
 
+# 业务在使用的 
 def send_message_stream_service(
   db: Session,
   conversation_id: int,
@@ -62,6 +64,12 @@ def send_message_stream_service(
     "user",
     content
   )
+
+  touch_conversation(
+    conversation
+  )
+
+  db.commit()
 
   # 直近（ちょっきん）２０件の会話歴史を取得して　　LLMに渡す
   db_messages = get_recent_messages(
@@ -143,6 +151,11 @@ def send_message_stream_service(
         "assistant",
         full_content
       )
+      touch_conversation(
+        conversation
+      )
+      db.commit()
+
 
       # summaryを更新
       update_conversation_summary_service(
@@ -251,213 +264,6 @@ def send_message_stream_service(
     status_code=500,
     detail="Toolの実行回数が上限を超えました"
   )
-
-
-# 簡単なstream
-def stream_message_service(
-  db: Session,
-  conversation_id: int,
-  content: str,
-  current_user: User
-):
-  conversation = get_conversation_by_id(db, conversation_id)
-  if conversation is None:
-    raise HTTPException(
-      status_code=404,
-      detail="指定されたConversationが見つかりません"
-    )
-  
-  if conversation.user_id != current_user.id:
-    raise HTTPException(
-      status_code=status.HTTP_403_FORBIDDEN,
-      # 　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　けんげん
-      detail="このConversationにアクセスする権限はありません"
-    )
-
-  # まずユーザーメッセージをdbに保存する
-  create_message(
-    db,
-    conversation_id,
-    "user",
-    content
-  )
-
-  # 直近（ちょっきん）２０件の会話歴史を取得して　　LLMに渡す
-  db_messages = get_recent_messages(
-    db,
-    conversation_id,
-    limit=20
-  )
-
-  messages = []
-
-  if conversation.summary:
-    messages.append({
-      "role": "system",
-      "content":(
-        "これまでの会話の要約：\n"
-        + conversation.summary
-      )
-    })
-
-    print("summary", conversation.summary)
-
-    messages.extend([
-      {
-        "role": message.role,
-        "content": message.content
-      }
-      for message in db_messages
-    ])
-
-  # SQLAlchemy Messageはdictに変換する
-  messages = [
-    {
-      "role": message.role,
-      "content": message.content
-    }
-    for message in db_messages
-  ]
-
-  full_reply = ""
-  for chunk in stream_chat_with_llm(messages):
-    full_reply += chunk
-    yield f"data: {chunk}\n\n"
-
-  create_message(
-      db,
-      conversation_id,
-      "assistant",
-      full_reply
-  )
-
-# 普通版本的 不带流式的
-def send_message_service(
-    db: Session,
-    conversation_id: int,
-    content: str,
-    current_user: User
-):
-    conversation = get_conversation_by_id(
-        db,
-        conversation_id
-    )
-
-    if conversation is None:
-        raise HTTPException(
-            status_code=404,
-            detail="指定されたConversationが見つかりません"
-        )
-
-    if conversation.user_id != current_user.id:
-        raise HTTPException(
-            status_code=403,
-            detail="このConversationにアクセスする権限がありません"
-        )
-
-    # 1️⃣ ユーザーのメッセージを保存
-    create_message(
-        db,
-        conversation_id,
-        "user",
-        content
-    )
-
-    # 2️⃣ LLMに渡す会話履歴を取得
-    db_messages = get_recent_messages(
-        db,
-        conversation_id
-    )
-
-    messages = [
-        {
-            "role": message.role,
-            "content": message.content
-        }
-        for message in db_messages
-    ]
-
-    MAX_TOOL_STEPS = 5
-
-    # 3️⃣ Agent Loop
-    for step in range(MAX_TOOL_STEPS):
-
-        ai_message = chat_with_tools(
-            messages
-        )
-
-        # Tool Callがない → 最終回答
-        if not ai_message.tool_calls:
-
-            assistant_message = create_message(
-                db,
-                conversation_id,
-                "assistant",
-                ai_message.content
-            )
-
-            update_conversation_summary_service(
-                db,
-                conversation
-            )
-
-            return assistant_message
-
-        # assistantのTool Call情報を履歴に追加
-        messages.append(
-            ai_message.model_dump()
-        )
-
-        # 4️⃣ Tool Callを処理
-        for tool_call in ai_message.tool_calls:
-
-            tool_name = tool_call.function.name
-
-            arguments = json.loads(
-                tool_call.function.arguments
-            )
-
-            tool_function = TOOL_REGISTRY.get(
-                tool_name
-            )
-
-            if tool_function is None:
-                raise HTTPException(
-                    status_code=400,
-                    detail="指定されたToolは存在しません"
-                )
-
-            try:
-                result = tool_function(
-                    db,
-                    current_user,
-                    **arguments
-                )
-
-            except HTTPException as e:
-                result = {
-                    "success": False,
-                    "status_code": e.status_code,
-                    "error": e.detail
-                }
-
-            # Tool実行結果をLLMの履歴に追加
-            messages.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": json.dumps(
-                        result,
-                        ensure_ascii=False,
-                        default=str
-                    )
-                }
-            )
-
-    raise HTTPException(
-        status_code=500,
-        detail="Toolの実行回数が上限を超えました"
-    )
 
 def update_conversation_summary_service(
   db: Session,

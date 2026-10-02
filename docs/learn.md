@@ -1,7 +1,13 @@
 ## alembic(アランビック)
-alembic revision --autogenerate -m "add status to projects"
-alembic upgrade head
-alembic current
+> 本地
+- alembic revision --autogenerate -m "add status to projects"
+- alembic upgrade head
+- alembic current
+
+> 容器里
+- docker compose -f compose.yaml -f compose.dev.yaml exec api alembic revision --autogenerate -m "add pinned_at to conversations"
+- docker compose -f compose.yaml -f compose.dev.yaml exec api alembic stamp head
+- docker compose -f compose.yaml -f compose.dev.yaml exec api alembic current
 
 ---
 

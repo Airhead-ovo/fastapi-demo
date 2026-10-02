@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
+from datetime import datetime
 
 from models.user import User
 from crud.conversation import (
@@ -7,9 +8,13 @@ from crud.conversation import (
   get_conversations,
   get_conversation_by_id,
   update_conversation,
-  delete_conversation
+  delete_conversation,
+  update_conversation_pinned
 )
-from schemas.conversation import ConversationUpdate
+from schemas.conversation import (
+  ConversationUpdate,
+  ConversationPinUpdate
+)
 from crud.message import (
   get_messages,
 )
@@ -85,4 +90,18 @@ def delete_conversation_service(
   delete_conversation(
     db,
     conversation
+  )
+
+def update_conversation_pinned_service (
+  conversation_id: int,
+  data: ConversationPinUpdate,
+  db: Session,
+  current_user: User
+): 
+  conversation = get_conversation_by_id_service(conversation_id, db, current_user)
+  pinned_at = datetime.now() if data.is_pinned else None
+  return update_conversation_pinned(
+    pinned_at,
+    conversation, 
+    db
   )
