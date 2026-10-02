@@ -113,7 +113,7 @@ from pydantic import BaseModel, field_validator
 class UserCreate(BaseModel):
   name: str
 
-  @filed_validator("name")
+  @field_validator("name")
   @classmethod
   def validate_name(cls, value):
     if not value.strip():

@@ -154,19 +154,7 @@ llm_result, tool_result = await asyncio.gather(
 > Pydantic = 数据校验 + 数据结构定义
 
 ## Day 2
-### SQLAlchemy
-```
-1️⃣　事务：
-第 1 步写入成功
-第 2 步故意失败
-→ 第 1 步也必须撤销
-
-2️⃣ N + 1：
-故意制造大量 SQL
-→ 看见问题
-→ 用 selectinload 修掉
-```
-#### Transaction / Rollback
+### Transaction / Rollback
 > Transaction 保证一组数据库操作要么全部成功，要么全部失败。
 > トランザクションでは、複数の処理を一つの単位として扱います。途中で失敗した場合は、すべてロールバックできます。
 
@@ -185,4 +173,48 @@ db.flush()
 db.commit()
 ↓
 “确认，正式提交事务”
+```
+```python
+def update_message_service (
+  data,
+  db,
+  current_user
+):
+  try:
+    #  ...多个用到crud的业务逻辑 在curd中不用写commit 统一在service后写
+    delete_messages_from(
+      message,
+      db
+    )
+
+    touch_conversation(conversation)
+
+    db.commit()
+    db.refresh(message)
+    return message
+
+  except Exception:
+    db.rollback() # 发生报错回滚
+    raise # 提升异常报错
+```
+
+### 条件表达式
+C = A if condition else B
+
+```
+pinned_at = datetime.now() if data.is_pinned else None
+```
+### 排序 ASC / DESC
+```text
+ASC  = ascending 升序
+     = 小 → 大
+     = 早 → 晚
+
+DESC = descending 降序
+     = 大 → 小
+     = 晚 → 早
+```
+
+```text
+nulls_last : 有 pinned_at 的排前面, NULL 的排后面
 ```

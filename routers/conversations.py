@@ -5,7 +5,8 @@ from fastapi.responses import StreamingResponse
 from database import get_db
 from schemas.message import (
   MessageResponse,
-  MessageCreate
+  MessageCreate,
+  MessageUpdate
 )
 from schemas.conversation import (
   ConversationResponse,
@@ -15,7 +16,8 @@ from schemas.conversation import (
 from models.user import User
 from services.auth import get_current_user
 from services.message import (
-  send_message_stream_service
+  send_message_stream_service,
+  update_message_service
 )
 from services.conversation import (
   create_conversation_service,
@@ -145,3 +147,22 @@ def update_conversation_pinned(
     db,
     current_user
   )
+
+@router.patch(
+  "/{conversation_id}/messages/{message_id}",
+  status_code=204
+)
+def update_message(
+  conversation_id: int,
+  message_id: int,
+  data: MessageUpdate,
+  db: Session = Depends(get_db),
+  current_user: User = Depends(get_current_user)
+):
+  return update_message_service(
+    conversation_id,
+    message_id,
+    data,
+    db,
+    current_user
+  ) 

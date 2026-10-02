@@ -5,7 +5,9 @@ import logging
 
 from crud.message import (
   create_message,
-  get_recent_messages
+  get_recent_messages,
+  get_message_by_id,
+  delete_messages_from,
 )
 from crud.conversation import touch_conversation
 from models.user import User
@@ -26,6 +28,7 @@ from tools.task_tools import (
 from crud.message import (
   get_unsummarized_messages
 )
+from services.conversation import get_conversation_by_id_service
 from utils.sse import sse_event
 
 logger = logging.getLogger(__name__)
@@ -298,3 +301,50 @@ def update_conversation_summary_service(
     old_messages[-1].id # old_messages[-1]はlistで最後のメッセージ
   )
   
+def update_message_service (
+  conversation_id,
+  message_id,
+  data,
+  db,
+  current_user
+):
+  try:
+    conversation = get_conversation_by_id_service(
+      conversation_id, 
+      db, 
+      current_user
+    )
+      
+    message = get_message_by_id(message_id, db)
+    if message is None:
+      raise HTTPException(
+        status_code=404,
+        detail="messageが見つかりません"
+      )
+    if message.conversation_id != conversation.id:
+      raise HTTPException(
+        status_code=404,
+        detail="messageが見つかりません"
+      )
+    if message.role != "user":
+      raise HTTPException(
+        status_code=403,
+        detail="'assistant'のメッセージを変更する権限がない"
+      )
+
+    delete_messages_from(
+      message,
+      db
+    )
+
+    # 清空摘要
+    conversation.summary = None
+    conversation.summary_message_id = None
+
+    touch_conversation(conversation)
+
+    db.commit()
+
+  except Exception:
+    db.rollback()
+    raise
