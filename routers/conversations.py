@@ -21,7 +21,8 @@ from services.conversation import (
   create_conversation_service,
   get_conversations_service,
   get_messages_by_conversation_id_service,
-  update_conversation_service
+  update_conversation_service,
+  delete_conversation_service
 )
 
 router = APIRouter( 
@@ -129,4 +130,18 @@ def update_conversation(
     db,
     current_user
   )
-  
+
+@router.delete(
+  "/{conversation_id}",
+  status_code = 204
+)
+def delete_conversation(
+  conversation_id: int,
+  db: Session = Depends(get_db),
+  current_user: User = Depends(get_current_user)
+):
+  delete_conversation_service(
+    conversation_id,
+    db,
+    current_user
+  )

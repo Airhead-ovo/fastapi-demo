@@ -17,7 +17,10 @@ class Message(Base):
   content: Mapped[str]
 
   conversation_id: Mapped[int] = mapped_column(
-    ForeignKey("conversations.id")
+    ForeignKey(
+      "conversations.id",
+      ondelete="CASCADE"
+    )
   )
 
   conversations: Mapped["Conversation"] = relationship(

@@ -70,3 +70,10 @@ def update_conversation (
   db.refresh(conversation)
 
   return conversation
+
+def delete_conversation (
+  db: Session,
+  conversation: Conversation
+):
+  db.delete(conversation)
+  db.commit()

@@ -23,7 +23,8 @@ class Conversation(Base):
   )
 
   messages: Mapped[list["Message"]] = relationship(
-    back_populates="conversations"
+    back_populates="conversations",
+    cascade="all, delete-orphan" # 删除conversation时关联的messages也要删除
   )
 
   summary: Mapped[str | None] = mapped_column(
