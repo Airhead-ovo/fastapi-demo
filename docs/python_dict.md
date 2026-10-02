@@ -81,3 +81,48 @@ Python list / dict:
 → 专门跑 Docker Container 的服务
 
 ---
+
+## 传值规范 pydantic
+```
+from pydantic import BaseModel
+
+class UserCreate(BaseModel):
+  name: str  
+```
+- `name: str | None = None`
+  - ✅ { name: null }
+  - ✅ {}
+  - ✅ { name: "" } 
+
+
+- `name: str`
+  - ❌ { name: null }
+  - ❌ {}
+  - ✅ { name: "" } 
+
+
+- `name: str = Field(min_length=1)` 
+  - ❌ { name: null }
+  - ❌ {}
+  - ❌ { name: "" } 
+  - ✅ { name: "  " } 
+
+- 无敌版 必填
+```
+from pydantic import BaseModel, field_validator
+class UserCreate(BaseModel):
+  name: str
+
+  @filed_validator("name")
+  @classmethod
+  def validate_name(cls, value):
+    if not value.strip():
+      raise ValueError("name 入力必要がある")
+    return value.strip()
+```
+  - ❌ { name: null }
+  - ❌ {}
+  - ❌ { name: "" } 
+  - ❌ { name: "  " } 
+  - ✅ { name: "test" } 
+  - ✅ { name: "  test  " }  -> { name: "test" }

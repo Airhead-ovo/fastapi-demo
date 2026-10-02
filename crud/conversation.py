@@ -3,6 +3,7 @@ from sqlalchemy import select
 
 from models.conversation import Conversation
 from models.user import User
+from schemas.conversation import ConversationUpdate
 
 def create_conversation(
   db: Session,
@@ -50,3 +51,22 @@ def get_conversations(
     .order_by(Conversation.created_at.desc())
   )
   return db.scalars(query).all()
+
+def update_conversation (
+  db: Session,
+  data: ConversationUpdate,
+  conversation: Conversation
+):
+  update_data = data.model_dump(
+    exclude_unset=True
+  )
+  for field, value in update_data.items():
+    setattr(
+      conversation,
+      field,
+      value
+    )
+  db.commit()
+  db.refresh(conversation)
+
+  return conversation

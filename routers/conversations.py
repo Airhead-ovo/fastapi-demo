@@ -8,7 +8,8 @@ from schemas.message import (
   MessageCreate
 )
 from schemas.conversation import (
-  ConversationResponse
+  ConversationResponse,
+  ConversationUpdate
 )
 from models.user import User
 from services.auth import get_current_user
@@ -19,7 +20,8 @@ from services.message import (
 from services.conversation import (
   create_conversation_service,
   get_conversations_service,
-  get_messages_by_conversation_id_service
+  get_messages_by_conversation_id_service,
+  update_conversation_service
 )
 
 router = APIRouter( 
@@ -110,3 +112,21 @@ def get_messages_by_conversation_id(
     db,
     current_user,
   )
+
+@router.patch(
+  "/{conversation_id}",
+  response_model=ConversationResponse
+)
+def update_conversation(
+  conversation_id: int,
+  data: ConversationUpdate, 
+  db: Session = Depends(get_db),
+  current_user: User = Depends(get_current_user),
+):
+  return update_conversation_service (
+    conversation_id,
+    data,
+    db,
+    current_user
+  )
+  

@@ -5,9 +5,13 @@ from models.user import User
 from crud.conversation import (
   create_conversation,
   get_conversations,
-  get_conversation_by_id
+  get_conversation_by_id,
+  update_conversation
 )
-from crud.message import get_messages
+from schemas.conversation import ConversationUpdate
+from crud.message import (
+  get_messages,
+)
 
 def create_conversation_service(
   db: Session,
@@ -48,4 +52,27 @@ def get_messages_by_conversation_id_service(
   return get_messages(
     db,
     conversation_id
+  )
+
+def update_conversation_service (
+  conversation_id: int,
+  data: ConversationUpdate,
+  db: Session,
+  current_user: User
+):
+  conversation = get_conversation_by_id(db, conversation_id)
+  if conversation is None: 
+    raise HTTPException(
+      status_code=404,
+      detail="conversationが見つかりません"
+    )
+  if conversation.user_id != current_user.id:
+    raise HTTPException(
+      status_code=status.HTTP_403_FORBIDDEN,
+      detail="このconversationにアクセスする権限はありません"
+    )
+  return update_conversation(
+    db,
+    data,
+    conversation
   )
