@@ -38,6 +38,19 @@ class Conversation(Base):
     nullable=True
   )
 
+  project_id: Mapped[int | None] = mapped_column(
+    ForeignKey("projects.id"),
+    nullable = True
+  )
+
+  project: Mapped["Project | None"] = relationship(
+    back_populates="conversations"
+  )
+
+  documents: Mapped[list["Document"]] = relationship(
+    back_populates="conversation"
+  )
+
   created_at: Mapped[datetime] = mapped_column(
     server_default = func.now()
   )

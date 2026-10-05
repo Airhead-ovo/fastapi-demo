@@ -26,3 +26,6 @@ class Project(Base):
   documents: Mapped[list["Document"]] = relationship(
     back_populates="project"
   )
+  conversations: Mapped[list["Conversation"]] = relationship(
+    back_populates="project"
+  )
