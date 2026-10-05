@@ -19,7 +19,7 @@
 - Planner / Executor
 - Context
 - Memory
-- RAG
+- [RAG](#RAG)
 - Evaluation
 ## Day 1
 ### async / await
@@ -217,4 +217,100 @@ DESC = descending 降序
 
 ```text
 nulls_last : 有 pinned_at 的排前面, NULL 的排后面
+```
+
+## Day 3
+### RAG
+RAG = Retrieval + Augmented + Generation
+搜索 + 增强 + 生成
+> 在自己的知识库里检索相关资料, 把资料作为context交给llm, llm根据资料生成回答
+```
+解决的问题是:
+LLM 不知道企业内部数据
+LLM 知识可能过期
+文档太长无法全部塞入 Context
+需要让回答基于指定知识来源
+```
+
+#### Embedding 向量化
+> Embedding是把一段文字转换成一串能够表示其语义的数字, 变成类似[0.21, -0.53, 0.71, ...]的数组向量(Vector)
+
+> 上传文档的时候, 提前把chunk都变成向量存到数据库, 用户提问时把问题转换成向量再与数据库对比, 通过检索(Retrieval)找到相似度最接近的
+
+
+- Chunk overlap: 故意让两个 Chunk 重叠, 防止重要信息被切断, 造成信息损失
+```text
+Chunk 1：
+AAAA BBBB CCCC DDDD
+
+Chunk 2：
+CCCC DDDD EEEE FFFF
+
+Chunk 3：
+EEEE FFFF GGGG HHHH
+```
+知识入库过程
+```
+上传 .txt
+ ↓
+读取文本
+ ↓
+split_text()
+ ↓
+Chunk
+ ↓
+Embedding Model
+ ↓
+1024维 Vector
+ ↓
+PostgreSQL + pgvector
+```
+#### Retrieval 检索
+1. 用户提出问题 `为什么不能让 AI 判断用户权限`
+2. 先把问题变成vector `question_embedding = get_embedding(question)`
+3. 把问题vector拿去与数据库存储的chunk vector对比, Cosine Distance, Distance越低表示语意越近
+```
+  distance = DocumentChunk.embedding.cosine_distance(
+    question_embedding
+  )
+```
+4. Threshold 阈值设置
+即使完全没有相关内容，数据库依然可以找出最像的三个即Top-k
+所以需要增加 `MAX_DISTANCE = 0.6`
+
+#### Augmentation 增强
+1. 检索出来三个chunk: Chunk A, Chunk B, Chunk C
+2. 通过join组合  `context = "\n\n".join(contents) `
+3. 把文字context交给llm
+
+#### Generation 生成
+最基础的rag架构
+```
+Question
+ ↓
+Embedding
+ ↓
+Vector Search
+ ↓
+Top-K
+ ↓
+Threshold
+ ↓
+Context
+ ↓
+Prompt
+ ↓
+LLM
+ ↓
+Answer
+```
+```
+chunks = search_chunks_service(...)
+
+context = augment_context_service(chunks)
+
+answer = generate_rag_answer(
+    question,
+    context
+)
 ```

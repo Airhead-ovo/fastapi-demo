@@ -20,6 +20,10 @@ from schemas.tool import (
   CreateProjectToolArgs,
   GetProjectsToolArgs
 )
+from services.document import (
+  search_chunks_service,
+  augment_context_service
+)
 
 def create_task_tool(
   db,
@@ -178,6 +182,26 @@ def update_project_tool(
     "description": project.description
   }
 
+def knowledge_search_tool(
+  db,
+  current_user,
+  project_id: int,
+  question: str,
+):
+  chunks = search_chunks_service(
+    project_id,
+    question,
+    db,
+    current_user
+  )
+  context = augment_context_service(chunks)
+
+  if not context:
+    return "知识库中没有找到与该问题相关的信息"
+  
+  return context
+
+
 
 
 TOOL_REGISTRY = {
@@ -186,7 +210,8 @@ TOOL_REGISTRY = {
   "update_task": update_task_tool,
   "get_projects": get_projects_tool,
   "create_project": create_project_tool,
-  "update_project": update_project_tool
+  "update_project": update_project_tool,
+  "knowledge_search": knowledge_search_tool
 }
 
 TOOL_SCHEMA_REGISTRY = {

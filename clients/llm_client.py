@@ -28,6 +28,9 @@ def stream_chat_with_llm(messages):
     )
 
     for chunk in stream:
+        if not chunk.choices:
+            continue
+
         content = chunk.choices[0].delta.content
 
         if content:
@@ -185,7 +188,28 @@ tools = [
                 ]
             }
         }
-    }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "knowledge_search",
+            "description": "指定したProjectのナレッジベースから、ユーザーの質問に関連する情報を検索する",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "project_id": {
+                        "type": "integer",
+                        "description": "ProjectのID"
+                    },
+                    "question": {
+                        "type": "string",
+                        "description": "ユーザーの質問",
+                    }
+                },
+                "required": ["project_id", "question"]
+            }
+        }
+    },    
 ]
 
 def chat_with_tools(messages):

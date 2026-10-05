@@ -12,6 +12,8 @@ from models.project import Project
 from models.task import Task
 from models.conversation import Conversation
 from models.message import Message
+from models.document import Document
+from models.document_chunk import DocumentChunk
 
 config = context.config
 

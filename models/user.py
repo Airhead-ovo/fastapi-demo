@@ -18,3 +18,6 @@ class User(Base):
   conversations: Mapped[list["Conversation"]] = relationship(
     back_populates="user" 
   )
+  documents: Mapped[list["Document"]] = relationship(
+    back_populates="user" 
+  )

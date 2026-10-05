@@ -1,0 +1,111 @@
+FastAPI RAG 测试知识库
+
+第一章：FastAPI 基础
+
+FastAPI 是一个用于构建 Web API 的 Python 框架。它基于 Python
+类型提示，可以自动生成 OpenAPI 文档。开发者通常可以通过 Swagger UI
+查看和测试接口。
+
+在 FastAPI 中，使用 async def
+定义异步接口。当程序需要等待网络请求、数据库访问或文件读取等 I/O
+操作时，可以使用 await
+让出控制权，使事件循环继续处理其他任务。异步编程并不会让 CPU
+计算本身变快，它主要用于提高 I/O 密集型程序在等待期间的并发处理能力。
+
+FastAPI 的 Depends 可以用于依赖注入。例如数据库
+Session、当前登录用户和权限校验逻辑，都可以通过 Depends
+注入到路由函数中。这有助于减少重复代码，并让认证和数据库依赖更加统一。
+
+第二章：PostgreSQL 与 SQLAlchemy
+
+PostgreSQL 是一个关系型数据库。项目可以使用 SQLAlchemy ORM 将 Python
+类映射到数据库表。例如 Project、Document 和 DocumentChunk 都可以定义为
+SQLAlchemy Model。
+
+SQLAlchemy 中的 JOIN 用于连接不同的数据表。例如 DocumentChunk 表只有
+document_id，而 project_id 存储在 Document 表中。如果需要查询某个
+Project 下的所有 Chunk，可以将 DocumentChunk 与 Document 通过
+DocumentChunk.document_id = Document.id 连接，再根据 Document.project_id
+进行过滤。
+
+事务可以保证一组数据库操作要么全部成功，要么全部失败。例如上传知识库文档时，可以先创建
+Document，再创建多个 DocumentChunk，最后统一 commit。如果中途生成
+Embedding 失败，可以 rollback，避免数据库中留下只写入了一部分的数据。
+
+第三章：RAG
+
+RAG 的全称是 Retrieval-Augmented
+Generation，即检索增强生成。它的核心思想是在大语言模型回答问题之前，先从外部知识库中检索与问题相关的信息，再把这些信息作为
+Context 提供给大语言模型。
+
+一个基础的 RAG 文档处理流程包括：上传文件、解析文本、文本切块、生成
+Embedding、保存向量。用户提问时，系统同样会把问题转换成
+Embedding，然后与数据库中的 Chunk
+向量进行相似度比较，找出最相关的若干文本片段。
+
+文本切块的原因是整篇文档通常太长，而且一整篇文档只生成一个向量会损失局部语义。将文档拆成较小的
+Chunk 后，可以更精确地找到与问题相关的内容。
+
+Chunk overlap 是指相邻文本块之间保留一部分重复内容。例如 chunk_size 为
+500，overlap 为 50 时，下一个 Chunk 会保留上一个 Chunk
+末尾附近的一部分文字。这样可以降低一句话或一个完整语义刚好被切割边界截断造成的信息损失。
+
+第四章：Embedding 与向量检索
+
+Embedding
+是把文本转换成数值向量的技术。语义相近的文本，其向量在向量空间中的位置通常也更加接近。因此，即使用户问题和知识库原文没有使用完全相同的关键词，也有机会通过语义相似度找到相关内容。
+
+本测试项目使用 1024 维 Embedding。每一个 DocumentChunk 都保存自己的
+content、chunk_index、document_id 和 embedding。
+
+pgvector 是 PostgreSQL
+的向量扩展，可以直接在数据库中存储和检索向量。进行 RAG
+检索时，不需要把数据库中的全部向量读取到 Python 后逐个计算，而可以让
+PostgreSQL 和 pgvector 完成向量距离排序。
+
+Cosine distance 可以用于衡量两个向量方向上的差异。使用 pgvector
+进行查询时，可以按照问题向量与 Chunk embedding 的 cosine distance
+从小到大排序。距离越小，通常意味着语义越相似。最后使用 LIMIT
+3，就可以得到 Top 3 最相关的 Chunk。
+
+第五章：Redis
+
+Redis
+是一个常用的内存数据存储系统，适合用于缓存和保存临时数据。在项目列表查询中，可以使用
+Cache-Aside 模式：先查询 Redis，如果缓存不存在，再查询
+PostgreSQL，并把查询结果写入 Redis。
+
+缓存需要考虑失效问题。当用户创建、修改或删除 Project
+后，应删除对应的项目列表缓存。下一次读取时重新查询数据库并写入缓存，从而避免长期返回旧数据。
+
+Redis 和 PostgreSQL 的职责不同。PostgreSQL 通常用于持久化业务数据，而
+Redis 更适合缓存、会话状态或其他允许过期的临时数据。
+
+第六章：Agent 与 Tool Calling
+
+AI Agent
+不应该直接访问数据库。更安全清晰的架构是让大语言模型决定是否调用
+Tool，而 Tool Wrapper 再调用后端 Service。Service
+负责权限校验和业务规则，CRUD 负责具体数据库操作。
+
+例如用户要求“帮我创建一个任务”，大语言模型可以生成 create_task Tool
+Call。后端收到 Tool Call 后执行对应工具，工具调用 Task Service，最终由
+CRUD 写入 PostgreSQL。
+
+认证和授权不能交给大语言模型判断。即使模型生成了某个
+project_id，后端仍然应该根据 current_user 验证该用户是否有权访问对应
+Project。
+
+第七章：Docker 与部署
+
+Docker 可以将应用和运行环境打包到容器中。一个完整的 Web 项目可能包含
+API、PostgreSQL、Redis、前端和 Nginx 等多个服务，并通过 Docker Compose
+统一管理。
+
+开发环境可以将源代码目录挂载到容器，并使用 uvicorn 的 reload
+功能。这样修改 Python 源代码后通常不需要重新构建镜像。但如果
+requirements.txt 增加了新的 Python 依赖，则通常需要重新 build 镜像。
+
+Nginx 可以作为反向代理，将外部请求转发到后端 API
+服务，也可以负责提供前端静态文件。在生产环境修改 Nginx
+配置后，应先检查配置是否正确，再进行 reload。
