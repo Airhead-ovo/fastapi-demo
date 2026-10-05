@@ -197,16 +197,12 @@ tools = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "project_id": {
-                        "type": "integer",
-                        "description": "ProjectのID"
-                    },
                     "question": {
                         "type": "string",
                         "description": "ユーザーの質問",
                     }
                 },
-                "required": ["project_id", "question"]
+                "required": ["question"]
             }
         }
     },    
@@ -268,6 +264,10 @@ SYSTEM_PROMPT = """
         再実行しないでください。
 
     ８. 各ターンでは、現在のユーザーメッセージから必要な操作を判断してください。
+
+    9. 当用户的问题涉及上传的文件、文档内容或项目知识库时，必须先调用 knowledge_search，再根据检索结果回答。不得在未检索的情况下声称知识库没有相关信息。
+
+    10. 让 Agent 在遇到非 Task/Project 的事实性问题时，不要直接拒答，而是优先尝试 knowledge_search；如果检索不到，再说明知识库没有相关信息。
 """
 
 def summarize_conversation(

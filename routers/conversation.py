@@ -40,13 +40,15 @@ router = APIRouter(
 )
 def create_conversation (
   title: str,
+  project_id: int | None = None,
   current_user: User = Depends(get_current_user),
   db: Session = Depends(get_db)
 ):
   return create_conversation_service(
     db,
     title,
-    current_user
+    current_user,
+    project_id
   )
 
 

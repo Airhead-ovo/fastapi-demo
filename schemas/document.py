@@ -5,7 +5,8 @@ class DocumentResponse(BaseModel):
   filename: str
   file_path: str
   file_size: int
-  project_id: int
+  project_id: int | None = None
+  conversation_id: int | None = None
   model_config = ConfigDict(
     from_attributes=True
   )

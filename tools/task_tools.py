@@ -185,14 +185,14 @@ def update_project_tool(
 def knowledge_search_tool(
   db,
   current_user,
-  project_id: int,
+  conversation_id: int,
   question: str,
 ):
   chunks = search_chunks_service(
-    project_id,
-    question,
     db,
-    current_user
+    current_user,
+    question,
+    conversation_id
   )
   context = augment_context_service(chunks)
 

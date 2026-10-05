@@ -230,11 +230,19 @@ def send_message_stream_service(
         )
       
       try:
-        result = tool_function(
-          db,
-          current_user,
-          **arguments
-        )
+        if tool_name == "knowledge_search":
+          result = tool_function(
+            db,
+            current_user,
+            conversation_id=conversation_id,
+            **arguments
+          )
+        else:
+          result = tool_function(
+            db,
+            current_user,
+            **arguments
+          )
 
       except HTTPException as e:
         result = {

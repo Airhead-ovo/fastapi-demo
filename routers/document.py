@@ -10,7 +10,8 @@ from schemas.document import (
 )
 from services.document import (
   create_document_service,
-  rag_answer_service
+  rag_answer_service,
+  create_conversation_document_service
 )
 
 router = APIRouter()
@@ -33,18 +34,37 @@ async def create_document(
     current_user
   )
 
+# 在项目里检索增强并生成回答
 @router.get(
-  "/projects/{project_id}/documents/search",
+  "/projects/conversations/{conversation_id}/documents/search",
 )
 def search_chunks(
-  project_id: int,
+  conversation_id: int,
   question: str,
   db: Session = Depends(get_db),
   current_user: User = Depends(get_current_user)
 ):
   return rag_answer_service(
-    project_id,
+    conversation_id,
     question,
+    db,
+    current_user
+  )
+
+# 普通conversation上传对话内临时文件
+@router.post(
+  "/conversations/{conversation_id}/documents",
+  response_model=DocumentResponse
+)
+async def create_conversation_document(
+  conversation_id: int,
+  file: UploadFile = File(...),
+  db: Session = Depends(get_db),
+  current_user: User = Depends(get_current_user)
+):
+  return await create_conversation_document_service(
+    conversation_id,
+    file,
     db,
     current_user
   )

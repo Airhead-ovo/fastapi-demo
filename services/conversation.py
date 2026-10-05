@@ -18,16 +18,24 @@ from schemas.conversation import (
 from crud.message import (
   get_messages,
 )
+from services.project import (
+  get_project_service
+)
 
 def create_conversation_service(
   db: Session,
   title: str,
-  current_user: User
+  current_user: User,
+  project_id: int | None = None
 ):
+  if project_id is not None:
+    get_project_service(db, current_user, project_id)
+
   return create_conversation(
     db,
     title,
-    current_user.id
+    current_user.id,
+    project_id
   )
 
 def get_conversations_service(
@@ -39,6 +47,7 @@ def get_conversations_service(
     current_user.id
   )
 
+# 校验 conversation
 def get_conversation_by_id_service(
   conversation_id: int,
   db: Session,

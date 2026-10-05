@@ -9,11 +9,13 @@ from schemas.conversation import ConversationUpdate
 def create_conversation(
   db: Session,
   title: str,
-  user_id: int
+  user_id: int,
+  project_id: int | None
 ):
   conversation = Conversation(
     title=title,
-    user_id=user_id
+    user_id=user_id,
+    project_id=project_id
   )
 
   db.add(conversation)
