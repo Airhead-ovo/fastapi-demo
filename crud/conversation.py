@@ -119,3 +119,16 @@ def touch_conversation(
   conversation: Conversation
 ):
   conversation.updated_at = datetime.now()
+
+def change_conversation_to_project(
+  conversation,
+  project,
+):
+  conversation.project_id = project.id
+
+def change_document_to_project(
+  document,
+  project
+):
+  document.project_id = project.id
+  document.conversation_id = None

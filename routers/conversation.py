@@ -26,7 +26,8 @@ from services.conversation import (
   get_messages_by_conversation_id_service,
   update_conversation_service,
   delete_conversation_service,
-  update_conversation_pinned_service
+  update_conversation_pinned_service,
+  change_conversation_to_project_servie
 )
 
 router = APIRouter( 
@@ -184,3 +185,21 @@ def update_message(
     db,
     current_user
   ) 
+
+
+@router.patch(
+  "/{conversation_id}/projects/{project_id}",
+  status_code=204
+)
+def change_conversation_to_project(
+  conversation_id: int,
+  project_id: int,
+  db: Session = Depends(get_db),
+  current_user: User = Depends(get_current_user)
+):
+  return change_conversation_to_project_servie(
+    conversation_id,
+    project_id,
+    db,
+    current_user
+  )

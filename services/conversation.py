@@ -10,7 +10,9 @@ from crud.conversation import (
   get_conversations_by_project_id,
   update_conversation,
   delete_conversation,
-  update_conversation_pinned
+  update_conversation_pinned,
+  change_conversation_to_project,
+  change_document_to_project
 )
 from schemas.conversation import (
   ConversationUpdate,
@@ -126,3 +128,38 @@ def update_conversation_pinned_service (
     conversation, 
     db
   )
+
+def change_conversation_to_project_servie(
+  conversation_id,
+  project_id,
+  db,
+  current_user
+):
+  try:
+
+    conversation = get_conversation_by_id_service(conversation_id, db, current_user)
+
+    if conversation.project_id is not None:
+      raise HTTPException(
+        status_code=400,
+        detail="无法移动已有项目的对话"
+      )
+
+    project = get_project_service(db, current_user, project_id)
+
+    for document in conversation.documents:
+      change_document_to_project(
+        document,
+        project
+      )
+
+    change_conversation_to_project(
+      conversation,
+      project,
+    )
+
+    db.commit()
+
+  except Exception:
+    db.rollback()
+    raise
