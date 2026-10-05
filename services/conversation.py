@@ -7,6 +7,7 @@ from crud.conversation import (
   create_conversation,
   get_conversations,
   get_conversation_by_id,
+  get_conversations_by_project_id,
   update_conversation,
   delete_conversation,
   update_conversation_pinned
@@ -46,7 +47,18 @@ def get_conversations_service(
     db,
     current_user.id
   )
+def get_conversations_by_project_id_service(
+  project_id: int,
+  db: Session,
+  current_user: User
+):
+  get_project_service(db, current_user, project_id)
 
+  return get_conversations_by_project_id(
+    project_id,
+    db,
+    current_user
+  )
 # 校验 conversation
 def get_conversation_by_id_service(
   conversation_id: int,

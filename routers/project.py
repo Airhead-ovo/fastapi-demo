@@ -32,6 +32,7 @@ from schemas.task import (
   TaskUpdate
 )
 
+
 router = APIRouter( 
   prefix="/projects",
   tags=["Projects"]

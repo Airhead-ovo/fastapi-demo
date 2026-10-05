@@ -9,6 +9,7 @@ class ConversationResponse(BaseModel):
   title: str
   user_id: int
   pinned_at: datetime | None
+  project_id: int | None = None
   model_config = ConfigDict(
     from_attributes=True
   )

@@ -22,6 +22,7 @@ from services.message import (
 from services.conversation import (
   create_conversation_service,
   get_conversations_service,
+  get_conversations_by_project_id_service,
   get_messages_by_conversation_id_service,
   update_conversation_service,
   delete_conversation_service,
@@ -82,6 +83,21 @@ def get_conversations(
   current_user:User = Depends(get_current_user)
 ):
   return get_conversations_service(
+    db,
+    current_user
+  )
+
+@router.get(
+  "/{project_id}",
+  response_model=list[ConversationResponse]
+)
+def get_conversations_by_project_id(
+  project_id: int,
+  db: Session = Depends(get_db),
+  current_user:User = Depends(get_current_user)
+):
+  return get_conversations_by_project_id_service(
+    project_id,
     db,
     current_user
   )

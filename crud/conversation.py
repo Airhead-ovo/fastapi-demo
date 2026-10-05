@@ -50,10 +50,30 @@ def get_conversations(
 ):
   query = (
     select(Conversation)
-    .where(Conversation.user_id == user_id)
+    .where(
+      Conversation.user_id == user_id,
+      Conversation.project_id.is_(None)
+    )
     .order_by(
       # asc是升序 从小到大/时间从早到晚 ,  nulls_last是空值放最后
       Conversation.pinned_at.asc().nulls_last(),
+      Conversation.updated_at.desc()
+    )
+  )
+  return db.scalars(query).all()
+
+def get_conversations_by_project_id(
+  project_id: int,
+  db,
+  current_user
+):
+  query = (
+    select(Conversation)
+    .where(
+      Conversation.project_id == project_id,
+      Conversation.user_id == current_user.id
+    )
+    .order_by(
       Conversation.updated_at.desc()
     )
   )

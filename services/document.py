@@ -1,9 +1,13 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, status
+import os
 
 from crud.document import (
   create_document,
   create_document_chunk,
-  search_chunks
+  search_chunks,
+  get_documents_by_project_id,
+  delete_projects_documents_by_document_id,
+  get_project_document
 )
 from models.project import Project
 from models.conversation import Conversation
@@ -215,3 +219,76 @@ def generate_rag_answer(
   answer = "".join(res)
 
   return answer
+
+
+def get_documents_by_project_id_service(
+  project_id,
+  db,
+  current_user
+):
+  get_project_service(db, current_user, project_id)
+  return get_documents_by_project_id(
+    project_id,
+    db
+  )
+
+def delete_projects_documents_by_document_id_service(
+  project_id,
+  document_id,
+  db,
+  current_user
+):
+  get_project_service(db, current_user, project_id)
+  document = get_project_document(project_id, document_id, db)
+
+  if document is None:
+    raise HTTPException(
+      status_code=404,
+      detail="指定されたDocumentが見つかりません"
+    )
+
+  file_path = document.file_path
+
+  delete_projects_documents_by_document_id(
+    document,
+    db
+  )
+
+  db.commit()
+
+  if os.path.exists(file_path):
+    os.remove(file_path)
+
+def get_projects_documents_preview_service(
+  project_id,
+  document_id,
+  db,
+  current_user
+):
+  get_project_service(db, current_user, project_id)
+  document = get_project_document(project_id, document_id, db)
+
+  if document is None:
+    raise HTTPException(
+      status_code=404,
+      detail="指定されたdocumentは見つかりません"
+    )
+
+  if not os.path.exists(document.file_path):
+    raise HTTPException(
+      status_code=500,
+      detail="Documentファイルが存在しません"
+    )
+
+  with open(
+    document.file_path,
+    "r",
+    encoding="utf-8"
+  ) as f:
+    content = f.read()
+  return {
+    "filename": document.filename,
+    "content": content
+  }
+
+

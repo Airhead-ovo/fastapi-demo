@@ -2,7 +2,7 @@ from models.document import Document
 from models.project import Project
 from models.conversation import Conversation
 from models.document_chunk import DocumentChunk
-from sqlalchemy import select
+from sqlalchemy import select, delete
 
 def create_document(
   db,
@@ -78,3 +78,38 @@ def search_chunks(
   )
 
   return db.execute(query).all()
+
+def get_documents_by_project_id(
+  project_id,
+  db
+):
+  query = (
+    select(Document)
+    .where(
+      Document.project_id == project_id
+    )
+    .order_by(
+      Document.created_at.desc()
+    )
+  )
+  return db.scalars(query).all()
+
+def get_project_document(
+  project_id,
+  document_id,
+  db
+):
+  query = (
+    select(Document)
+    .where(
+      Document.project_id == project_id,
+      Document.id == document_id
+    )
+  )
+  return db.scalar(query)
+  
+def delete_projects_documents_by_document_id(
+  document,
+  db,
+):
+  db.delete(document)
