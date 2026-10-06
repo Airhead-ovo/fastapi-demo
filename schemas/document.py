@@ -16,6 +16,7 @@ class DocumentChunkResponse(BaseModel):
   chunk_index: int
   content: str
   document_id: int
+  filename: str
   distance: float
 
 class DocumentPreviewResponse(BaseModel):

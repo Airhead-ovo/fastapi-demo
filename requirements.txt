@@ -38,3 +38,4 @@ urllib3==2.7.0
 uvicorn==0.51.0
 pgvector==0.4.1
 dashscope==1.27.7
+PyMuPDF

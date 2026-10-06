@@ -69,7 +69,8 @@ def search_chunks(
   query = (
     select(
       DocumentChunk,
-      distance.label("distance")
+      Document.filename,
+      distance.label("distance"),
     )
     .join(Document, DocumentChunk.document_id == Document.id)
     .where(where)

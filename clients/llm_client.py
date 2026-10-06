@@ -268,6 +268,10 @@ SYSTEM_PROMPT = """
     9. 当用户的问题涉及上传的文件、文档内容或项目知识库时，必须先调用 knowledge_search，再根据检索结果回答。不得在未检索的情况下声称知识库没有相关信息。
 
     10. 让 Agent 在遇到非 Task/Project 的事实性问题时，不要直接拒答，而是优先尝试 knowledge_search；如果检索不到，再说明知识库没有相关信息。
+
+    11. 当使用 knowledge_search 返回的知识库内容回答时，
+        必须在回答末尾列出参考来源。
+        来源必须使用 knowledge_search 返回的真实文件名，不得自行编造。
 """
 
 def summarize_conversation(

@@ -1,5 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, status
 import os
+import pymupdf
+from pathlib import Path
 
 from crud.document import (
   create_document,
@@ -32,12 +34,14 @@ async def create_document_common(
   conversation: Conversation | None = None
 ):
     # if file.content_type not in [
-    #   "text/plain"
+    #   "text/plain",
+    #   "application/pdf",
+    #   "text/markdown"
     # ]:
-    if not file.filename.lower().endswith(".txt"):
+    if not file.filename.lower().endswith((".txt", ".md", ".pdf")):
       raise HTTPException(
         status_code=400,
-        detail="txtのみアップロードできます"
+        detail="txtとpdfのみアップロードできます"
       )
     
     content = await file.read()
@@ -50,6 +54,14 @@ async def create_document_common(
     await file.seek(0) # 把文件指针重新指向开头
   
     file_path = save_file(file)
+
+    text = extract_text(file_path)
+
+    if not text.strip():
+      raise HTTPException(
+        status_code=400,
+        detail="有効なテキストを抽出できません"
+      )
   
     document = create_document(
       db,
@@ -62,7 +74,7 @@ async def create_document_common(
     )
   
     # 拆分chunk
-    chunks = split_text(content.decode("utf-8"))
+    chunks = split_text(text)
   
     # 存入document_chunk
     for index, chunk in enumerate(chunks):
@@ -76,6 +88,30 @@ async def create_document_common(
       )
     db.commit()
     return document
+
+def extract_text(
+  file_path: str
+):
+
+  suffix = Path(file_path).suffix.lower() #获取文件的后缀
+  
+  text = ""
+
+  if suffix == ".pdf":
+    doc = pymupdf.open(file_path)
+
+    for page in doc:
+      text += page.get_text()
+
+  elif suffix in [".txt", ".md"]:
+    with open(file_path, "r", encoding="utf-8") as f:
+      text = f.read()
+  
+  else:
+    return None
+
+  return text
+
   
 # 上传文档 同时把内容分成chunk及vector保存在数据库
 async def create_document_service(
@@ -143,9 +179,10 @@ def search_chunks_service(
       chunk_index=chunk.chunk_index,
       content=chunk.content,
       document_id=chunk.document_id,
-      distance=distance
+      distance=distance,
+      filename=filename
     )
-    for chunk, distance in results
+    for chunk, filename, distance in results
   ]
 
   return chunks
@@ -176,7 +213,9 @@ def augment_context_service(
   contents = []
   for chunk in chunks:
     if chunk.distance <= 0.6:
-      contents.append(chunk.content)
+      contents.append(
+        f"[来源: {chunk.filename}]\n{chunk.content}"
+      )
 
   if not contents:
     return ""
@@ -280,12 +319,14 @@ def get_projects_documents_preview_service(
       detail="Documentファイルが存在しません"
     )
 
-  with open(
-    document.file_path,
-    "r",
-    encoding="utf-8"
-  ) as f:
-    content = f.read()
+  # with open(
+  #   document.file_path,
+  #   "r",
+  #   encoding="utf-8"
+  # ) as f:
+  #   content = f.read()
+  content = extract_text(document.file_path)
+
   return {
     "filename": document.filename,
     "content": content
