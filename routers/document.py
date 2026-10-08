@@ -43,7 +43,7 @@ async def create_document(
   "/projects/conversations/{conversation_id}/documents/search",
   summary="检索增强并生成回答"
 )
-def search_chunks(
+def search_chunks_vector(
   conversation_id: int,
   question: str,
   db: Session = Depends(get_db),

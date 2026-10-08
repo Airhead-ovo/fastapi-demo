@@ -2,14 +2,17 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, status
 import os
 import pymupdf
 from pathlib import Path
+import json
 
+from clients.llm_client import chat_completion
 from crud.document import (
   create_document,
   create_document_chunk,
-  search_chunks,
+  search_chunks_vector,
   get_documents_by_project_id,
   delete_projects_documents_by_document_id,
-  get_project_document
+  get_project_document,
+  search_chunks_by_keyword
 )
 from models.project import Project
 from models.conversation import Conversation
@@ -164,13 +167,15 @@ def search_chunks_service(
   if conversation.project_id is not None:
     project = get_project_service(db, current_user, conversation.project_id)
 
-  question_embedding = get_embedding(question)
+  keywords = extract_keywords(question)
 
-  results = search_chunks(
-    question_embedding, 
+  results = hybrid_search_chunks(
+    question, 
+    keywords,
     db,
     project = project, 
-    conversation = conversation if project is None else None
+    conversation = conversation if project is None else None,
+    limit = 3
   )
 
   chunks = [
@@ -179,13 +184,14 @@ def search_chunks_service(
       chunk_index=chunk.chunk_index,
       content=chunk.content,
       document_id=chunk.document_id,
-      distance=distance,
+      distance=None,
       filename=filename
     )
-    for chunk, filename, distance in results
+    for chunk, filename in results
   ]
 
   return chunks
+
 
 def rag_answer_service(
   conversation_id,
@@ -212,10 +218,10 @@ def augment_context_service(
 ) -> str:
   contents = []
   for chunk in chunks:
-    if chunk.distance <= 0.6:
-      contents.append(
-        f"[来源: {chunk.filename}]\n{chunk.content}"
-      )
+    # if chunk.distance <= 0.6:
+    contents.append(
+      f"[来源: {chunk.filename}]\n{chunk.content}"
+    )
 
   if not contents:
     return ""
@@ -332,4 +338,114 @@ def get_projects_documents_preview_service(
     "content": content
   }
 
+# 融合关键词检索和向量检索的排名
+def rrf_fusion(
+  vector_results,
+  keyword_results,
+  k=60
+):
+  scores = {}
+  for rank, row in enumerate(vector_results, start = 1):
+    chunk = row[0]
+    scores[chunk.id] = scores.get(chunk.id, 0) + (1 / (k + rank))
+
+  for rank, row in enumerate(keyword_results, start = 1):
+    chunk = row[0]
+    scores[chunk.id] = scores.get(chunk.id, 0) + (1 / (k + rank))
+
+  return sorted(scores, key=scores.get, reverse=True)
+    # 这里返回的是排序后的id列表 [2,4,1]
+    # 想要同时返回的话要改成 sorted(scores.items(), key=lambda item:item[1], reverse=True)
+
+def hybrid_search_chunks(
+  question,
+  keywords,
+  db,
+  project,
+  conversation,
+  limit
+):
+  
+  # 1. Vector Search
+  question_embedding = get_embedding(question)
+  vector_chunk_results = search_chunks_vector(
+    question_embedding,
+    db,
+    project,
+    conversation,
+    10
+  )
+
+  # 2. Keyword Search
+  keyword_chunk_results = search_chunks_by_keyword(
+    keywords,
+    db,
+    project,
+    conversation,
+    10
+  )
+
+  # 3. RRF Fusion
+
+  ranked_ids = rrf_fusion(
+    vector_chunk_results,
+    keyword_chunk_results
+  )
+
+  # 4. 返回 Top-K
+  chunk_map = {}
+  for row in vector_chunk_results + keyword_chunk_results:
+    chunk = row[0]
+    filename = row[1]
+    chunk_map[chunk.id] = (chunk, filename)
+
+  results = [
+    chunk_map[chunk_id]
+    for chunk_id in ranked_ids[:limit]
+  ]
+
+  return results
+
+def extract_keywords(
+  question
+):
+  try:
+
+    messages = [
+      {
+        "role": "system",
+        "content": """
+          你是一个 RAG 检索关键词提取助手。
+
+          从用户的问题中提取 3～6 个有检索价值的关键词。
+          保留专业术语、年份、型号等重要信息。
+          不要包含无意义的语气词。
+
+          只返回 JSON，不要添加 Markdown 代码块。
+
+          格式：
+          {"keywords": ["关键词1", "关键词2"]}
+        """
+      },
+      {
+        "role": "user",
+        "content": question
+      }
+    ]
+
+    content = chat_completion(
+      messages
+    )
+    
+    data = json.loads(content) # {"keywords": ["聚乙烯", "催化剂", "2025"]}
+
+    keywords = data.get("keywords", []) # 取出 keywords 对应的值，如果没有这个字段，就返回空列表 []。
+
+    print(keywords)
+
+    return keywords
+  
+  except Exception as e:
+    print(f"关键词提取失败: {e}")
+    return []
 

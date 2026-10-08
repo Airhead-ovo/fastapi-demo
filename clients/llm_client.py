@@ -7,24 +7,48 @@ from openai import OpenAI
 
 load_dotenv()
 
+DEFAULT_MODEL = os.getenv("DEFAULT_LLM_MODEL", "qwen3.7-plus")
+
 client = OpenAI(
     api_key=os.getenv("DASHSCOPE_API_KEY"),
     base_url="https://ws-l7s59gws13dh95vm.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
 )
 
-def chat_with_llm(messages):
+def chat_completion(
+    messages: list[dict],
+    model: str | None = None,
+    stream: bool = False,
+    tools: list | None = None
+):
     response = client.chat.completions.create(
-        model="qwen3.7-plus",
-        messages=messages
+        model=model or DEFAULT_MODEL,
+        messages=messages,
+        stream=stream,
+        tools=tools
     )
 
-    return response.choices[0].message.content
+    # 流式：返回 Stream 对象
+    if stream:
+        return response
+
+    message = response.choices[0].message
+
+    # Tool Calling：返回完整 Message
+    if tools is not None:
+        return message
+
+    # 普通聊天：返回字符串
+    return message.content
+def chat_with_llm(messages):
+    return chat_completion(
+        messages
+    )
 
 def stream_chat_with_llm(messages):
-    stream = client.chat.completions.create(
-        model="qwen3.7-plus",
-        messages=messages,
-        stream=True
+    stream = chat_completion(
+        messages,
+        model = None,
+        stream = True
     )
 
     for chunk in stream:
@@ -216,12 +240,7 @@ def chat_with_tools(messages):
         },
         *messages
     ]
-    response = client.chat.completions.create(
-        model="qwen3.7-plus",
-        messages=request_messages,
-        tools=tools
-    )
-    return response.choices[0].message
+    return chat_completion(request_messages, tools=tools)
 
 def stream_chat_with_tools(messages):
     request_messages = [
@@ -231,13 +250,11 @@ def stream_chat_with_tools(messages):
         },
         *messages
     ]
-    response = client.chat.completions.create(
-        model="qwen3.7-plus",
-        messages=request_messages,
-        tools=tools,
-        stream=True
+    return chat_completion(
+        request_messages,
+        stream=True,
+        tools=tools
     )
-    return response
 
 SYSTEM_PROMPT = """
     あなたはTask管理システムを操作するAIアシスタントです。
@@ -292,14 +309,13 @@ def summarize_conversation(
         すでに完了した操作を優先してください。
     """
 
-    response = client.chat.completions.create(
-        model="qwen3.7-plus",
-        messages=[
+    messages = [
             {
                 "role": "user",
                 "content": prompt
             }
         ]
-    )
 
-    return response.choices[0].message.content
+    return chat_completion(
+        messages
+    )

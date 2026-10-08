@@ -1,3 +1,5 @@
+from sqlalchemy import or_
+
 from models.document import Document
 from models.project import Project
 from models.conversation import Conversation
@@ -43,7 +45,42 @@ def create_document_chunk(
   db.flush()
   return document_chunk
 
-def search_chunks(
+def get_documents_by_project_id(
+  project_id,
+  db
+):
+  query = (
+    select(Document)
+    .where(
+      Document.project_id == project_id
+    )
+    .order_by(
+      Document.created_at.desc()
+    )
+  )
+  return db.scalars(query).all()
+
+def get_project_document(
+  project_id,
+  document_id,
+  db
+):
+  query = (
+    select(Document)
+    .where(
+      Document.project_id == project_id,
+      Document.id == document_id
+    )
+  )
+  return db.scalar(query)
+  
+def delete_projects_documents_by_document_id(
+  document,
+  db,
+):
+  db.delete(document)
+
+def search_chunks_vector(
   question_embedding,
   db,
   project: Project | None = None,
@@ -80,37 +117,66 @@ def search_chunks(
 
   return db.execute(query).all()
 
-def get_documents_by_project_id(
-  project_id,
-  db
-):
-  query = (
-    select(Document)
-    .where(
-      Document.project_id == project_id
-    )
-    .order_by(
-      Document.created_at.desc()
-    )
-  )
-  return db.scalars(query).all()
-
-def get_project_document(
-  project_id,
-  document_id,
-  db
-):
-  query = (
-    select(Document)
-    .where(
-      Document.project_id == project_id,
-      Document.id == document_id
-    )
-  )
-  return db.scalar(query)
-  
-def delete_projects_documents_by_document_id(
-  document,
+def search_chunks_by_keyword(
+  keywords,
   db,
+  project: Project | None = None,
+  conversation: Conversation | None = None,
+  limit: int = 3
 ):
-  db.delete(document)
+  conditions = [
+    DocumentChunk.content.ilike(f"%{keyword}%")
+    for keyword in keywords
+  ]
+  
+  if not conditions:
+    return []
+  
+  where = (
+    Document.project_id == project.id
+    if project is not None
+    else Document.conversation_id == conversation.id
+  )
+
+  query = (
+    select(
+      DocumentChunk,
+      Document.filename
+    )
+    .join(Document, DocumentChunk.document_id == Document.id)
+    .where(where, or_(*conditions))
+  )
+  chunks = db.execute(query).all()
+  ranked_chunks = rank_keyword_chunks(chunks, keywords) # 过滤零分 按分数排序
+
+  return ranked_chunks[:limit]
+
+# 给 chunk 计算关键词分数
+def calculate_keyword_score(
+  content,
+  keywords
+):
+  score = 0
+  content_lower = content.lower()
+  for keyword in keywords:
+
+    if keyword.lower() in content_lower:
+      score += 1
+
+  return score
+
+
+# 过滤 0 分，按分数降序排列
+def rank_keyword_chunks(
+  chunks,
+  keywords
+):
+  results = []
+
+  for chunk, filename in chunks:
+    score = calculate_keyword_score(chunk.content, keywords)
+
+    if score > 0:
+      results.append((chunk, filename, score))
+
+  return sorted(results, key=lambda item: item[2], reverse=True)

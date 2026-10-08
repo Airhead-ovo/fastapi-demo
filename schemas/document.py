@@ -17,7 +17,7 @@ class DocumentChunkResponse(BaseModel):
   content: str
   document_id: int
   filename: str
-  distance: float
+  distance: float | None = None
 
 class DocumentPreviewResponse(BaseModel):
   filename: str
