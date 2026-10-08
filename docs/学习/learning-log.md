@@ -21,7 +21,6 @@
 - Memory
 - [RAG](#RAG)
 - Evaluation
-## Day 1
 ### async / await
 | 名詞 | 発音 | 中国語 |
 | --- | --- | --- |
@@ -153,7 +152,6 @@ llm_result, tool_result = await asyncio.gather(
 ### Pydantic
 > Pydantic = 数据校验 + 数据结构定义
 
-## Day 2
 ### Transaction / Rollback
 > Transaction 保证一组数据库操作要么全部成功，要么全部失败。
 > トランザクションでは、複数の処理を一つの単位として扱います。途中で失敗した場合は、すべてロールバックできます。
@@ -219,8 +217,8 @@ DESC = descending 降序
 nulls_last : 有 pinned_at 的排前面, NULL 的排后面
 ```
 
-## Day 3
 ### RAG
+RAG是让LLM回答前, 先从知识库检索相关内容, 再结合检索结果生成答案的技术
 RAG = Retrieval + Augmented + Generation
 搜索 + 增强 + 生成
 > 在自己的知识库里检索相关资料, 把资料作为context交给llm, llm根据资料生成回答
@@ -231,24 +229,18 @@ LLM 知识可能过期
 文档太长无法全部塞入 Context
 需要让回答基于指定知识来源
 ```
-
+#### 文档处理和chunking
+当前支持PDF,txt,md,  pdf用pymupdf来提取文本再统一进入切分
+- Chunking(文本切分): 整篇文档太长; 小块文本更容易相关性匹配; 可以减少无关上下文和token消耗
+- Chunk overlap: 故意让两个 Chunk 重叠, 防止重要信息被切断, 造成信息损失
+```text
+段落优先 → 句子切分 → 固定长度兜底 → Overlap
+```
 #### Embedding 向量化
 > Embedding是把一段文字转换成一串能够表示其语义的数字, 变成类似[0.21, -0.53, 0.71, ...]的数组向量(Vector)
 
 > 上传文档的时候, 提前把chunk都变成向量存到数据库, 用户提问时把问题转换成向量再与数据库对比, 通过检索(Retrieval)找到相似度最接近的
 
-
-- Chunk overlap: 故意让两个 Chunk 重叠, 防止重要信息被切断, 造成信息损失
-```text
-Chunk 1：
-AAAA BBBB CCCC DDDD
-
-Chunk 2：
-CCCC DDDD EEEE FFFF
-
-Chunk 3：
-EEEE FFFF GGGG HHHH
-```
 知识入库过程
 ```
 上传 .txt
@@ -265,7 +257,12 @@ Embedding Model
  ↓
 PostgreSQL + pgvector
 ```
-#### Retrieval 检索
+使用余弦距离判断语义, 距离越小语义越近
+```
+DocumentChunk.embedding.cosine_distance(question_embedding)
+```
+向量检索的优点是能够识别语义相近但是用词不同的内容, 缺点是对专业术语, 年份, 型号等关键词不够敏感
+#### Retrieval 检索 
 1. 用户提出问题 `为什么不能让 AI 判断用户权限`
 2. 先把问题变成vector `question_embedding = get_embedding(question)`
 3. 把问题vector拿去与数据库存储的chunk vector对比, Cosine Distance, Distance越低表示语意越近
@@ -277,6 +274,28 @@ PostgreSQL + pgvector
 4. Threshold 阈值设置
 即使完全没有相关内容，数据库依然可以找出最像的三个即Top-k
 所以需要增加 `MAX_DISTANCE = 0.6`
+
+#### Keyword Search 关键词检索
+把问题拆成关键词, 去匹配chunk
+```
+question = “找到 2025 年聚乙烯催化剂的实验报告。”
+keywords = ["2025", "聚乙烯", "催化剂", "实验报告"]
+DocumentChunk.content.ilike(f"%{keyword}%")
+```
+ILIKE是不区分 大小写的匹配模式, %表示任意长度的字符
+多个关键词可以使用or_(*conditions), 命中任意一个就能进入候选集
+BM25 通常考虑词频（TF）、逆文档频率（IDF）和文档长度归一化等因素。
+
+#### Hybrid Search 混合检索
+结合向量检索和关键词检索, 使用RRF公式计算得分
+\[
+\operatorname{RRF}(d)=\sum_{r\in R}\frac{1}{k+\operatorname{rank}_r(d)}
+\]
+
+- \(d\)：某个 Chunk。
+- \(R\)：不同检索结果列表。
+- \(\operatorname{rank}_r(d)\)：Chunk 在某一路检索中的排名。
+- \(k\)：平滑参数，常用 60。
 
 #### Augmentation 增强
 1. 检索出来三个chunk: Chunk A, Chunk B, Chunk C
@@ -314,3 +333,5 @@ answer = generate_rag_answer(
     context
 )
 ```
+
+### MCP
